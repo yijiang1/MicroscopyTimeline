@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Microscopy Through Time</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f5ef;
+    --panel-2: #f0ede3;
+    --ink: #221d13;
+    --muted: #6b6558;
+    --accent: #a3722c;
+    --good: #1f9e6e;
+    --bad: #c0392b;
+    --rule: #ddd6c5;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  button { touch-action: manipulation; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.3px; }
+  h2 { font-size: 15px; margin: 26px 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  .muted-inline { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+  /* ── Setup screen ─────────────────────────────────────────────────── */
+  .field-label { font-size: 13px; font-weight: 700; margin: 0 0 8px; }
+  .name-input {
+    width: 100%; max-width: 280px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--rule); font-size: 16px; background: #fff; color: var(--ink);
+    font-family: inherit;
+  }
+  .topic-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .topic-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 14px; border-radius: 999px; border: 1px solid var(--rule);
+    background: #fff; color: var(--ink); font-size: 13px; font-weight: 600;
+    cursor: pointer; user-select: none; transition: all 0.12s; touch-action: manipulation;
+  }
+  .topic-pill:hover { border-color: var(--accent); }
+  .topic-pill.selected { background: #efece3; border-color: #c9c2ab; }
+  .topic-pill .count { color: var(--muted); font-weight: 400; }
+  .deck-count { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
+  .setup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; align-items: center; }
+  .streak-line { color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+  button.primary {
+    background: var(--accent); color: #fff; border: none;
+    padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 14.5px; cursor: pointer;
+    transition: filter 0.15s;
+  }
+  button.primary:hover { filter: brightness(1.1); }
+  button.primary:disabled { opacity: 0.4; cursor: default; filter: none; }
+  button.ghost {
+    background: none; color: var(--ink); border: 1px solid var(--rule);
+    padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: 13.5px; cursor: pointer;
+  }
+  button.ghost:hover { border-color: var(--accent); }
+  button.link {
+    background: none; border: none; color: var(--accent); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; padding: 0; text-decoration: underline;
+  }
+
+  /* ── Game screen ──────────────────────────────────────────────────── */
+  .hud {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; font-size: 14px; color: var(--muted);
+  }
+  .lives { font-size: 16px; letter-spacing: 2px; }
+
+  .hand {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex; gap: 14px; align-items: flex-start;
+    min-height: 78px;
+  }
+  .hand .icon { font-size: 34px; line-height: 1; }
+  .hand .body { flex: 1; }
+  .hand .title { font-weight: 700; font-size: 16px; margin: 0 0 4px; }
+  .hand .text { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .hand .year-hidden {
+    display: inline-block; margin-top: 6px; font-size: 12px; letter-spacing: 0.06em;
+    color: var(--accent); font-family: ui-monospace, monospace;
+  }
+  .hand.empty { align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+
+  .toast {
+    text-align: center; font-size: 13.5px; font-weight: 600;
+    max-height: 0; overflow: hidden; opacity: 0; transition: all 0.2s;
+    margin-top: 10px; border-radius: 10px;
+  }
+  .toast.show { max-height: 60px; opacity: 1; padding: 8px; }
+  .toast.good { background: rgba(31,158,110,0.12); color: var(--good); }
+  .toast.bad { background: rgba(192,57,43,0.12); color: var(--bad); }
+  .toast a { color: inherit; text-decoration: underline; font-weight: 700; }
+
+  .instructions { text-align: center; color: var(--muted); font-size: 12.5px; margin: 14px 0 6px; }
+
+  .timeline-scroll {
+    overflow-x: auto; padding: 20px 4px 28px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .timeline {
+    display: flex; align-items: center; min-width: min-content;
+    padding: 0 8px;
+  }
+  .slot {
+    width: 38px; height: 96px; flex-shrink: 0;
+    background: none; border: none; cursor: pointer; touch-action: manipulation;
+    position: relative; color: var(--accent); font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot::before {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: 2px; background: var(--rule); transform: translate(-50%, -50%);
+  }
+  .slot span { position: relative; z-index: 1; background: var(--bg); border-radius: 50%;
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    border: 1.5px dashed var(--rule); transition: all 0.15s; }
+  .slot:not(:disabled):hover span { border-color: var(--accent); color: var(--accent); background: rgba(212,162,76,0.12); transform: scale(1.1); }
+  .slot:disabled { cursor: default; opacity: 0.35; }
+
+  .card-tile {
+    flex-shrink: 0; width: 108px; height: 96px;
+    background: var(--panel-2); border: 1px solid var(--rule); border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 8px; text-align: center;
+    animation: pop 0.25s ease;
+  }
+  .card-tile .icon { font-size: 22px; }
+  .card-tile .year { font-family: ui-monospace, monospace; font-weight: 700; font-size: 15px; color: var(--accent); }
+  .card-tile .title { font-size: 10.5px; color: var(--muted); line-height: 1.25; }
+  @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .quit-row { text-align: center; margin-top: 6px; }
+
+  /* ── Overlays ─────────────────────────────────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(11,18,32,0.6);
+    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay-card {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 16px;
+    padding: 28px; max-width: 480px; width: 100%; max-height: 82vh; overflow-y: auto;
+  }
+  @media (max-width: 420px) {
+    .overlay-card { padding: 20px; }
+  }
+  .overlay-card h2 { margin: 0 0 6px; font-size: 22px; }
+  .overlay-card .score { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+  .overlay-card .streaks { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .recap-row { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+  .recap-row .y { font-family: ui-monospace, monospace; color: var(--accent); width: 42px; flex-shrink: 0; }
+  .recap-row .t { color: var(--ink); }
+  .overlay-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+  .lb-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--rule); font-size: 14px;
+  }
+  .lb-rank { width: 28px; font-weight: 700; color: var(--muted); }
+  .lb-name { flex: 1; font-weight: 600; }
+  .lb-streak { font-weight: 700; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="setup-screen">
+  <h1>🔬 Microscopy Through Time</h1>
+  <p class="sub">A timeline card game. Pick your topics, then place each discovery in the right chronological order.</p>
+
+  <p class="field-label">Your name (for the leaderboard)</p>
+  <input class="name-input" id="player-name" maxlength="24" placeholder="Anonymous Scientist" />
+
+  <h2>Topics <span class="muted-inline">— select none to include everything</span></h2>
+  <div class="topic-pills" id="topic-pills"></div>
+  <p class="deck-count" id="deck-count"></p>
+
+  <div class="setup-actions">
+    <button class="primary" id="start-btn">Start Game</button>
+    <button class="ghost" id="lb-open-btn">🏆 Leaderboard</button>
+  </div>
+  <p class="streak-line" id="streak-line"></p>
+</div>
+
+<div class="wrap" id="game-screen" hidden>
+  <h1>🔬 Microscopy Through Time</h1>
+  <p class="sub" id="game-sub">Read each discovery, then click a gap in the timeline to place it in the right order.</p>
+
+  <div class="hud">
+    <div class="lives" id="lives"></div>
+    <div id="progress">0 placed</div>
+  </div>
+
+  <div class="hand" id="hand"></div>
+  <div class="toast" id="toast"></div>
+  <p class="instructions">Click a gap below to place the card in your hand</p>
+
+  <div class="timeline-scroll"><div class="timeline" id="timeline"></div></div>
+  <p class="quit-row"><button class="link" id="quit-btn">← choose different topics</button></p>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-card">
+    <h2 id="overlay-title"></h2>
+    <div class="score" id="overlay-score"></div>
+    <div class="streaks" id="overlay-streaks"></div>
+    <div id="overlay-recap"></div>
+    <div class="overlay-actions">
+      <button class="primary" id="replay-btn">Play again</button>
+      <button class="ghost" id="overlay-topics-btn">Choose topics</button>
+      <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="lb-overlay" hidden>
+  <div class="overlay-card">
+    <h2>🏆 Longest Winning Streaks</h2>
+    <div id="lb-list">Loading…</div>
+    <div class="overlay-actions">
+      <button class="primary" id="lb-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOPICS = [
+  { id: 'optical', label: 'Optical Microscopy' },
+  { id: 'electron', label: 'Electron Microscopy' },
+  { id: 'probe', label: 'Scanning Probe' },
+  { id: 'xray', label: 'X-ray Microscopy' },
+  { id: 'ptycho', label: 'Ptychography' },
+];
+
+const EVENTS = [
+  { year: 1661, icon: '🩸', title: 'The missing link between arteries and veins', topics: ['optical'], text: "Marcello Malpighi spots capillaries under his microscope — the tiny vessels connecting arteries to veins that William Harvey had predicted must exist but never actually seen.", src: { label: 'Britannica: Marcello Malpighi', url: 'https://www.britannica.com/biography/Marcello-Malpighi' } },
+  { year: 1665, icon: '🔬', title: 'Micrographia', topics: ['optical'], text: 'English scientist Robert Hooke looks at a sliver of cork through his microscope and draws what he sees — tiny box-like structures he names "cells."', src: { label: 'History.com', url: 'https://www.history.com/articles/timeline-microscope' } },
+  { year: 1674, icon: '🦠', title: 'Life too small to see', topics: ['optical'], text: 'Antonie van Leeuwenhoek grinds his own tiny glass lenses and becomes the first person ever to see bacteria swimming in a drop of water.', src: { label: 'History.com', url: 'https://www.history.com/articles/timeline-microscope' } },
+  { year: 1733, icon: '🔵', title: 'Fixing the rainbow problem, for telescopes first', topics: ['optical'], text: 'Chester Moore Hall combines two kinds of glass into one lens, canceling out the rainbow-colored fringe that had blurred every lens before it — a century before anyone applies the trick to microscopes.', src: { label: 'Britannica: Chester Moor Hall', url: 'https://www.britannica.com/biography/Chester-Moor-Hall' } },
+  { year: 1801, icon: '〰️', title: 'Proving light is a wave', topics: ['optical'], text: 'Thomas Young shows that light passing through narrow openings creates bands of light and dark, exactly as waves would — reviving the wave theory that later explains why microscopes have a resolution limit at all.', src: { label: 'Britannica: Thomas Young', url: 'https://www.britannica.com/biography/Thomas-Young' } },
+  { year: 1814, icon: '🌈', title: 'Reading light like a barcode', topics: ['optical'], text: "Joseph von Fraunhofer builds the first spectroscope and discovers hundreds of thin dark lines in the sun's spectrum, showing that light itself carries a readable fingerprint.", src: { label: 'Wikipedia: Joseph von Fraunhofer', url: 'https://en.wikipedia.org/wiki/Joseph_von_Fraunhofer' } },
+  { year: 1830, icon: '🍊', title: 'A lens without rainbows', topics: ['optical'], text: 'Joseph Jackson Lister designs a microscope lens that fixes both blur and rainbow-colored fringes — the first truly clear high-power lens.', src: { label: 'Britannica: Joseph Jackson Lister', url: 'https://www.britannica.com/biography/Joseph-Jackson-Lister' } },
+  { year: 1838, icon: '🌿', title: 'Everything is made of cells', topics: ['optical'], text: 'Matthias Schleiden and Theodor Schwann argue that every living thing, plant or animal, is built from the same basic unit: the cell.', src: { label: 'Britannica: Cell theory', url: 'https://www.britannica.com/science/cell-theory' } },
+  { year: 1831, icon: '🥜', title: 'Finding a nut inside every cell', topics: ['optical'], text: "Robert Brown spots a small round structure inside orchid cells under his microscope and names it the 'nucleus' — Latin for little nut.", src: { label: 'Britannica: Robert Brown', url: 'https://www.britannica.com/biography/Robert-Brown-Scottish-botanist' } },
+  { year: 1873, icon: '📏', title: 'A speed limit for light', topics: ['optical'], text: 'Physicist Ernst Abbe figures out the rule that no light microscope can ever show details smaller than about half the wavelength of the light itself.', src: { label: 'Britannica: Abbe limit', url: 'https://www.britannica.com/science/Abbe-limit' } },
+  { year: 1878, icon: '🛢️', title: 'Dipping the lens in oil', topics: ['optical'], text: 'Ernst Abbe designs an objective lens meant to be used with a drop of oil between the lens and the sample, bending light more efficiently to capture finer detail.', src: { label: 'ZEISS: Oil immersion, refractive index & lens design', url: 'https://www.zeiss.com/microscopy/en/resources/insights-hub/foundational-knowledge/oil-immersion-refractive-index-and-lens-design.html' } },
+  { year: 1886, icon: '🎨', title: 'Glass good enough for three colors at once', topics: ['optical'], text: 'Ernst Abbe, Carl Zeiss, and glassmaker Otto Schott develop new optical glass and the apochromatic lens, which finally brings red, green, and blue light into focus at the same point.', src: { label: 'Wiley: Ernst Abbe\'s research program', url: 'https://analyticalscience.wiley.com/content/article-do/ernst-abbe-s-research-program-1878-1886' } },
+  { year: 1855, icon: '🔗', title: 'Every cell comes from another cell', topics: ['optical'], text: "Rudolf Virchow argues that cells never spring up from nothing — every cell anyone sees under a microscope must have come from a cell dividing before it, completing cell theory.", src: { label: 'Britannica: Rudolf Virchow', url: 'https://www.britannica.com/biography/Rudolf-Virchow' } },
+  { year: 1893, icon: '🔆', title: 'Lighting it evenly', topics: ['optical'], text: 'August Köhler works out how to light a microscope slide evenly and brightly without glare — the setup nearly every light microscope still uses today.', src: { label: 'Wikipedia: Köhler illumination', url: 'https://en.wikipedia.org/wiki/K%C3%B6hler_illumination' } },
+  { year: 1895, icon: '🩻', title: 'Rays that pass through skin', topics: ['xray'], text: "Wilhelm Röntgen discovers a mysterious new kind of ray that passes through soft tissue — he names it the 'X-ray' because its nature is unknown.", src: { label: 'Nobel Prize: Röntgen facts', url: 'https://www.nobelprize.org/prizes/physics/1901/rontgen/facts/' } },
+  { year: 1897, icon: '➖', title: 'Discovering the electron itself', topics: ['electron'], text: "J.J. Thomson shows that the mysterious rays inside a vacuum tube are actually a stream of tiny charged particles — the electron — decades before anyone thinks to build a microscope out of them.", src: { label: 'History.com: Thomson announces electrons', url: 'https://www.history.com/this-day-in-history/april-30/jj-thomson-announces-discovery-of-electrons' } },
+  { year: 1903, icon: '🌑', title: 'Seeing specks too small for any lens', topics: ['optical'], text: 'Richard Zsigmondy and Henry Siedentopf build the ultramicroscope, using light scattered sideways off tiny specks to reveal particles far smaller than any lens could focus on directly.', src: { label: 'Nobel Prize: Zsigmondy facts', url: 'https://www.nobelprize.org/prizes/chemistry/1925/zsigmondy/facts/' } },
+  { year: 1908, icon: '🎲', title: 'Watching atoms prove they are real', topics: ['optical'], text: "Jean Perrin uses the ultramicroscope to track the jittery dance of tiny particles in water, confirming Einstein's prediction and settling, once and for all, that atoms truly exist.", src: { label: 'Britannica: Jean Perrin', url: 'https://www.britannica.com/biography/Jean-Perrin' } },
+  { year: 1911, icon: '✨', title: 'Glowing under light', topics: ['optical'], text: 'The first fluorescence microscopes are built, showing that some things glow under the right color of light — a trick that later lets scientists light up single molecules.', src: { label: 'Nature Cell Biology: Milestones', url: 'https://www.nature.com/articles/ncb1009-1165' } },
+  { year: 1913, icon: '🔌', title: 'A tube that makes X-rays on demand', topics: ['xray'], text: 'William Coolidge invents a reliable X-ray tube with a heated tungsten filament, turning X-rays from a temperamental lab curiosity into something doctors and scientists can switch on whenever they need it.', src: { label: 'Smithsonian: Coolidge X-Ray Tube', url: 'https://americanhistory.si.edu/collections/object/nmah_728012' } },
+  { year: 1913, icon: '🔺', title: "Reading a crystal's structure from X-ray echoes", topics: ['xray'], text: "William Henry Bragg and his son Lawrence work out a simple equation connecting the angle X-rays bounce off a crystal to the spacing between its atoms — the basic rule behind reading atomic structure with X-rays.", src: { label: "Nobel Prize: Lawrence Bragg facts", url: 'https://www.nobelprize.org/prizes/physics/1915/wl-bragg/facts/' } },
+  { year: 1923, icon: '🎱', title: 'Light bounces off electrons and changes color', topics: ['xray'], text: 'Arthur Compton shows that X-rays scattering off electrons come out with a longer wavelength than they went in — proof that X-rays behave like particles as well as waves.', src: { label: 'Physics Today: Arthur Compton', url: 'https://physicstoday.aip.org/features/arthur-compton-and-the-mysteries-of-light' } },
+  { year: 1927, icon: '🌊', title: 'Proof that electrons act like waves', topics: ['electron'], text: "Clinton Davisson and Lester Germer show that electrons bouncing off a crystal spread out in a wave-like pattern, confirming Louis de Broglie's 1924 idea and making electron microscopes possible in principle.", src: { label: 'Physics: Quantum Milestones 1927', url: 'https://physics.aps.org/articles/v18/23' } },
+  { year: 1931, icon: '⚡', title: 'A microscope made of electrons', topics: ['electron'], text: 'Ernst Ruska and Max Knoll build the first microscope that focuses a beam of electrons instead of light.', src: { label: 'News-Medical: History of the EM', url: 'https://www.news-medical.net/life-sciences/History-of-the-Electron-Microscope.aspx' } },
+  { year: 1931, icon: '✌️', title: 'Two flashes at once', topics: ['optical'], text: 'Physicist Maria Göppert-Mayer predicts, purely in theory, that a molecule could absorb two photons of light at exactly the same instant — an idea nobody can test for another 30 years.', src: { label: 'ibidi: Two-photon microscopy', url: 'https://ibidi.com/content/217-two-photon-microscopy' } },
+  { year: 1933, icon: '🏅', title: 'Sharper than any light microscope', topics: ['electron'], text: "Ruska's next electron microscope finally resolves finer details than the best light microscope in the world.", src: { label: 'News-Medical: History of the EM', url: 'https://www.news-medical.net/life-sciences/History-of-the-Electron-Microscope.aspx' } },
+  { year: 1935, icon: '🌗', title: 'Seeing the invisible', topics: ['optical'], text: 'Frits Zernike invents phase-contrast microscopy, a way to make transparent, colorless things like living cells visible without staining or killing them.', src: { label: 'Nobel Prize: Zernike facts', url: 'https://www.nobelprize.org/prizes/physics/1953/zernike/facts/' } },
+  { year: 1937, icon: '📡', title: 'Scanning, spot by spot', topics: ['electron'], text: 'Manfred von Ardenne builds a microscope that sweeps a narrow beam across the sample one tiny spot at a time.', src: { label: 'News-Medical: History of the EM', url: 'https://www.news-medical.net/life-sciences/History-of-the-Electron-Microscope.aspx' } },
+  { year: 1940, icon: '🏢', title: 'The first one you could buy in America', topics: ['electron'], text: "RCA Laboratories builds 'Model B,' the first high-resolution transmission electron microscope sold commercially in North America.", src: { label: 'SRI: 75 years of the first commercial TEM', url: 'https://www.sri.com/press/story/75-years-of-innovation-the-worlds-first-commercial-transmission-electron-microscope-tem/' } },
+  { year: 1941, icon: '🟡', title: 'Antibodies that glow', topics: ['optical'], text: 'Albert Coons attaches a fluorescent dye to an antibody, letting scientists light up one specific protein inside a tissue sample and see exactly where it is.', src: { label: 'Lasker Foundation: Albert Coons', url: 'https://laskerfoundation.org/albert-coonss-bright-idea/' } },
+  { year: 1948, icon: '🌀', title: 'A picture with no lens at all', topics: ['electron'], text: 'Dennis Gabor invents holography — a way to record and rebuild a wave\'s full pattern without a lens — while trying to fix blurry electron microscope images.', src: { label: 'Nobel Prize 1971: Summary', url: 'https://www.nobelprize.org/prizes/physics/1971/summary/' } },
+  { year: 1948, icon: '🪞', title: 'Focusing X-rays with mirrors', topics: ['xray'], text: 'Paul Kirkpatrick and Albert Baez show that two curved mirrors set at a shallow angle can focus X-rays — a trick still used in X-ray microscopes today.', src: { label: 'News-Medical: History of X-ray microscopy', url: 'https://www.news-medical.net/life-sciences/History-and-Advances-of-X-Ray-Microscopy.aspx' } },
+  { year: 1952, icon: '🔷', title: 'Seeing 3D texture in flat, clear things', topics: ['optical'], text: 'Georges Nomarski invents differential interference contrast microscopy, using a special prism to turn tiny differences in thickness into a shaded, almost 3D-looking image.', src: { label: 'Wikipedia: Differential interference contrast microscopy', url: 'https://en.wikipedia.org/wiki/Differential_interference_contrast_microscopy' } },
+  { year: 1952, icon: '🔭', title: 'Mirrors shaped to bend X-rays gently', topics: ['xray'], text: 'Hans Wolter designs a curved mirror system that grazes X-rays at a shallow angle instead of aiming a lens at them head-on, the basic recipe still used to focus X-rays today.', src: { label: 'Wikipedia: Hans Wolter', url: 'https://en.wikipedia.org/wiki/Hans_Wolter' } },
+  { year: 1955, icon: '🧊', title: 'The first atom anyone ever actually saw', topics: ['probe'], text: 'Erwin Müller and Kanwar Bahadur cool a sharp tungsten needle and flood it with helium gas in a field ion microscope, becoming the first people in history to directly see an individual atom.', src: { label: 'Penn State: Physics pioneer key to microscopy', url: 'https://science.psu.edu/news/atoms-ja-atoms-physics-pioneer-key-microscopy-revolution-in-resolution' } },
+  { year: 1957, icon: '🗂️', title: 'An idea filed away', topics: ['optical'], text: "Marvin Minsky patents the confocal microscope, which scans one sharp point at a time to build a clean image — but the idea won't become a real product for 25 years.", src: { label: 'PMC: Marvin Minsky and the confocal microscope', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC11445717/' } },
+  { year: 1959, icon: '⚫', title: 'Painting the outside dark', topics: ['electron'], text: 'Sydney Brenner and Robert Horne coat delicate viruses in a heavy-metal stain that surrounds them without touching them, making their outlines pop under an electron microscope.', src: { label: 'ScienceDirect: Brenner & Horne 1959', url: 'https://www.sciencedirect.com/science/article/abs/pii/0006300259902379' } },
+  { year: 1965, icon: '🏭', title: 'You can buy one now', topics: ['electron'], text: 'Cambridge Instruments starts selling the first ready-made scanning electron microscope.', src: { label: 'News-Medical: History of the EM', url: 'https://www.news-medical.net/life-sciences/History-of-the-Electron-Microscope.aspx' } },
+  { year: 1968, icon: '🧱', title: 'Building a 3D shape from flat pictures', topics: ['electron'], text: 'David DeRosier and Aaron Klug show how to combine many flat electron-microscope images of an object into one three-dimensional reconstruction.', src: { label: 'Nature 217, 130–134 (1968)', url: 'https://www.nature.com/articles/217130a0' } },
+  { year: 1969, icon: '💡', title: 'An idea for solving invisible waves', topics: ['electron', 'ptycho'], text: 'Physicist Walter Hoppe describes a trick: overlap many diffraction patterns to recover information a lens alone would lose — the idea behind ptychography.', src: { label: 'Springer: Ptychography', url: 'https://link.springer.com/chapter/10.1007/978-3-030-00069-1_17' } },
+  { year: 1970, icon: '⚛️', title: 'Watching single atoms', topics: ['electron'], text: 'Albert Crewe shows that a scanning transmission electron microscope can image individual heavy atoms, one by one.', src: { label: 'arXiv: STEM phase retrieval review', url: 'https://arxiv.org/pdf/2309.05250' } },
+  { year: 1972, icon: '☀️', title: 'X-rays from a giant ring', topics: ['xray'], text: 'Horowitz and Howell build the first X-ray microscope powered by a synchrotron — a ring-shaped accelerator that makes an intensely bright, focused X-ray beam.', src: { label: 'News-Medical: History of X-ray microscopy', url: 'https://www.news-medical.net/life-sciences/History-and-Advances-of-X-Ray-Microscopy.aspx' } },
+  { year: 1972, icon: '❄️', title: 'A cooler, sharper electron source', topics: ['electron'], text: 'Hitachi and Albert Crewe commercialize the field-emission electron gun, which pulls electrons from a fine, unheated tip instead of a hot filament, for a sharper, more coherent beam.', src: { label: 'ETHW: First Practical Field Emission EM', url: 'https://ethw.org/Milestones:First_Practical_Field_Emission_Electron_Microscope,_1972' } },
+  { year: 1974, icon: '🏗️', title: 'A microscope built at a giant accelerator', topics: ['xray'], text: "Günter Schmahl's team builds a full-field X-ray microscope with focusing zone plates at the DESY accelerator in Germany, launching the modern era of X-ray microscopy.", src: { label: 'Wikipedia: Günter Schmahl', url: 'https://en.wikipedia.org/wiki/G%C3%BCnter_Schmahl' } },
+  { year: 1981, icon: '👆', title: 'Feeling atoms with a tip', topics: ['probe'], text: 'Gerd Binnig and Heinrich Rohrer build a microscope so sensitive its tiny tip can trace the bumps of individual atoms on a surface.', src: { label: 'National Inventors Hall of Fame', url: 'https://www.invent.org/inductees/heinrich-rohrer' } },
+  { year: 1981, icon: '🕯️', title: 'Light that only touches the surface', topics: ['optical'], text: "Daniel Axelrod develops TIRF microscopy, using a special angle of light to illuminate only the thinnest sliver right at a surface — perfect for watching what happens just outside a cell's membrane.", src: { label: 'Wikipedia: TIRF microscope', url: 'https://en.wikipedia.org/wiki/Total_internal_reflection_fluorescence_microscope' } },
+  { year: 1982, icon: '🏟️', title: 'A ring of light in New York', topics: ['xray'], text: 'The National Synchrotron Light Source starts up on Long Island, giving American researchers one of the first purpose-built rings of ultrabright X-ray and ultraviolet light.', src: { label: 'Wikipedia: National Synchrotron Light Source', url: 'https://en.wikipedia.org/wiki/National_Synchrotron_Light_Source' } },
+  { year: 1984, icon: '🧵', title: 'Listening for light through a tiny fiber', topics: ['probe'], text: "Dieter Pohl shows that a light-tapered glass fiber, held just nanometers from a surface, can 'see' details far smaller than the wavelength of the light itself.", src: { label: 'AZoNano: History of NSOM', url: 'https://www.azonano.com/article.aspx?ArticleID=2618' } },
+  { year: 1984, icon: '🧊', title: 'Freezing water without ice crystals', topics: ['electron'], text: "Jacques Dubochet's team learns to flash-freeze wet samples so fast that the water turns to glass instead of ice, preserving delicate biology for the electron microscope.", src: { label: 'Wikipedia: Cryo-electron microscopy', url: 'https://en.wikipedia.org/wiki/Cryo-electron_microscopy' } },
+  { year: 1986, icon: '🪡', title: 'A needle for surfaces', topics: ['probe'], text: 'Binnig, Quate, and Gerber invent a microscope that drags an ultra-fine needle across a surface to map every bump and dip.', src: { label: 'Nature Nanotechnology', url: 'https://www.nature.com/articles/nnano.2010.80' } },
+  { year: 1986, icon: '🎖️', title: 'A Nobel for the tunneling microscope', topics: ['probe'], text: 'Gerd Binnig and Heinrich Rohrer win the Nobel Prize in Physics for the scanning tunneling microscope they built five years earlier.', src: { label: 'Nobel Prize 1986: Summary', url: 'https://www.nobelprize.org/prizes/physics/1986/summary/' } },
+  { year: 1986, icon: '🪐', title: 'Proving a weird quantum effect with electrons', topics: ['electron'], text: "Akira Tonomura uses electron holography to prove the Aharonov-Bohm effect — showing a magnetic field can influence electrons even when they never pass through it — later called 'the world's most beautiful physics experiment.'", src: { label: 'Physical Review Letters 56, 792 (1986)', url: 'https://link.aps.org/doi/10.1103/PhysRevLett.56.792' } },
+  { year: 1987, icon: '📀', title: 'A confocal microscope you can actually buy', topics: ['optical'], text: "Thirty years after Minsky's patent, White, Amos, and Fordham build a practical confocal laser scanning microscope, and BioRad launches it as a real product for biology labs.", src: { label: 'PubMed: Advent of confocal laser scanning microscopy', url: 'https://pubmed.ncbi.nlm.nih.gov/41034494/' } },
+  { year: 1987, icon: '🧲', title: 'Mapping invisible magnets', topics: ['probe'], text: "Researchers adapt the atomic force microscope's tip to sense magnetic force instead of touch, turning it into a microscope for magnetic fields.", src: { label: 'AIP: Frontiers of magnetic force microscopy', url: 'https://pubs.aip.org/aip/jap/article/125/6/060901/156308/Frontiers-of-magnetic-force-microscopy' } },
+  { year: 1988, icon: '💨', title: "A microscope that doesn't need a vacuum", topics: ['electron'], text: 'The first commercial environmental SEM lets samples stay wet and at normal pressure instead of needing a dry vacuum chamber, so even living or liquid samples can be imaged.', src: { label: 'Wikipedia: Environmental SEM', url: 'https://en.wikipedia.org/wiki/Environmental_scanning_electron_microscope' } },
+  { year: 1989, icon: '🅰️', title: 'Spelling a name with atoms', topics: ['probe'], text: "Don Eigler and Erhard Schweizer use a scanning tunneling microscope to drag 35 individual xenon atoms into place, spelling out 'IBM' — the first time anyone arranged atoms on purpose.", src: { label: 'Wikipedia: IBM (atoms)', url: 'https://en.wikipedia.org/wiki/IBM_(atoms)' } },
+  { year: 1989, icon: '💧', title: 'A microscope that uses a tiny drop', topics: ['probe'], text: "Paul Hansma's team builds a microscope that senses ion flow through a glass micropipette to map wet, non-conducting surfaces no other probe microscope could image.", src: { label: 'Science: The scanning ion-conductance microscope', url: 'https://www.science.org/doi/10.1126/science.2464851' } },
+  { year: 1990, icon: '🎨', title: 'Coloring atoms by their weight', topics: ['electron'], text: 'Stephen Pennycook and David Jesson show that a STEM detector collecting electrons scattered to high angles makes brighter spots for heavier atoms — turning atomic number into image contrast.', src: { label: 'Wiley: Z-contrast STEM imaging', url: 'https://onlinelibrary.wiley.com/doi/abs/10.1002/0471266965.com083' } },
+  { year: 1990, icon: '🎇', title: 'Two photons, one sharp picture', topics: ['optical'], text: "Winfried Denk and colleagues finally build a working two-photon microscope, turning Göppert-Mayer's 1931 prediction into a tool for imaging deep inside living tissue.", src: { label: 'ibidi: Two-photon microscopy', url: 'https://ibidi.com/content/217-two-photon-microscopy' } },
+  { year: 1991, icon: '🔋', title: 'Mapping tiny electric charges', topics: ['probe'], text: 'Researchers add a voltage-sensing mode to the atomic force microscope, letting it map tiny variations in surface electric potential as it scans.', src: { label: 'Wikipedia: Kelvin probe force microscope', url: 'https://en.wikipedia.org/wiki/Kelvin_probe_force_microscope' } },
+  { year: 1992, icon: '🥶', title: 'Mapping the inside of a frozen cell', topics: ['electron'], text: "Automated tilt-series methods make cryo-electron tomography practical, letting Wolfgang Baumeister's team rotate a frozen cell under the beam and reconstruct its crowded interior in 3D.", src: { label: 'Wikipedia: Wolfgang Baumeister', url: 'https://en.wikipedia.org/wiki/Wolfgang_Baumeister' } },
+  { year: 1993, icon: '🥁', title: 'Tapping instead of dragging', topics: ['probe'], text: "Digital Instruments introduces 'tapping mode,' where the AFM's tip bounces up and down instead of dragging across the surface — gentle enough to image soft and biological samples without damaging them.", src: { label: 'Bruker: AFM history of innovation', url: 'https://www.bruker.com/en/products-and-solutions/microscopes/materials-afm/afm-history-of-innovation.html' } },
+  { year: 1994, icon: '💍', title: "Europe's giant ring of light", topics: ['xray'], text: 'The European Synchrotron Radiation Facility begins operating its enormous storage ring, giving scientists some of the brightest X-ray beams on the planet.', src: { label: 'ESRF: History', url: 'https://www.esrf.fr/home/about/History.html' } },
+  { year: 1993, icon: '🛰️', title: "California's bright new X-ray source", topics: ['xray'], text: 'The Advanced Light Source at Berkeley achieves first light, becoming one of the brightest sources of soft X-rays and ultraviolet light in the world.', src: { label: 'ALS: History', url: 'https://als.lbl.gov/about/history/' } },
+  { year: 1994, icon: '🟢', title: 'A glowing tag for living cells', topics: ['optical'], text: 'Martin Chalfie shows that the green fluorescent protein from a jellyfish can be genetically attached to any protein, lighting it up green inside a living cell.', src: { label: 'MIT Technology Review: A Nobel for illuminating biology', url: 'https://www.technologyreview.com/2008/10/08/96325/a-nobel-for-illuminating-biology/' } },
+  { year: 1994, icon: '🎣', title: 'Fishing for the force between two molecules', topics: ['probe'], text: 'Ernst-Ludwig Florin, Vincent Moy, and Hermann Gaub use an AFM tip like a tiny fishing line to measure the exact force needed to pull apart a single receptor and its ligand.', src: { label: 'Nature Methods: Single-molecule force spectroscopy', url: 'https://www.nature.com/articles/nmeth.1218' } },
+  { year: 1995, icon: '🪄', title: 'Sharper than the lens allows', topics: ['electron', 'ptycho'], text: "Peter Nellist and John Rodenburg show that ptychography can reveal detail beyond the microscope's own 'information limit' — years before hardware correctors could do the same.", src: { label: 'Nellist et al. 1995, Nature', url: 'https://www.nature.com/articles/374630a0' } },
+  { year: 1995, icon: '🌆', title: 'Bright X-rays for everyone', topics: ['xray'], text: 'The Advanced Photon Source at Argonne National Laboratory starts up, giving American scientists one of the brightest X-ray sources in the world.', src: { label: 'Wikipedia: Advanced Photon Source', url: 'https://en.wikipedia.org/wiki/Advanced_Photon_Source' } },
+  { year: 1995, icon: '🪶', title: 'Feeling individual atoms without touching them', topics: ['probe'], text: 'Franz Giessibl achieves true atomic resolution in non-contact mode, sensing atoms through delicate quantum forces alone rather than by bumping into the surface.', src: { label: 'PubMed: The qPlus sensor', url: 'https://pubmed.ncbi.nlm.nih.gov/30709191/' } },
+  { year: 1997, icon: '🎆', title: "Japan's giant X-ray ring", topics: ['xray'], text: "SPring-8, one of the largest synchrotrons ever built, opens in Japan, adding another of the world's brightest X-ray sources.", src: { label: 'Wikipedia: SPring-8', url: 'https://en.wikipedia.org/wiki/SPring-8' } },
+  { year: 1997, icon: '🎻', title: 'Stretching one protein until it unfolds', topics: ['probe'], text: 'Matthias Rief and colleagues use an AFM tip to grab a single giant muscle protein, titin, and pull it apart one folded segment at a time, measuring the force needed to unravel each one.', src: { label: 'Nature Methods: Single-molecule force spectroscopy', url: 'https://www.nature.com/articles/nmeth.1218' } },
+  { year: 1998, icon: '🎯', title: 'Fixing a blurry lens', topics: ['electron'], text: 'Haider, Rose, and Urban get a working corrector for spherical aberration — the flaw that had blurred electron microscopes for decades.', src: { label: 'ScienceDirect: Ultramicroscopy 1998', url: 'https://www.sciencedirect.com/science/article/abs/pii/S0304399198000485' } },
+  { year: 1999, icon: '🧩', title: 'Solving the phase problem with math alone', topics: ['xray'], text: 'John Miao and David Sayre show that if you collect enough diffraction data, you can reconstruct an image with no lens at all — just an algorithm.', src: { label: 'Wikipedia: Coherent diffraction imaging', url: 'https://en.wikipedia.org/wiki/Coherent_diffraction_imaging' } },
+  { year: 2000, icon: '✂️', title: 'Erasing the blur with a second laser', topics: ['optical'], text: 'Stefan Hell demonstrates STED microscopy, which uses a second laser beam shaped like a donut to switch off fluorescence everywhere except a spot far smaller than the diffraction limit.', src: { label: 'Nobel Prize 2014: Press release', url: 'https://www.nobelprize.org/prizes/chemistry/2014/press-release/' } },
+  { year: 2000, icon: '🏷️', title: 'A blurry lens, fixed for sale', topics: ['electron'], text: "The company Nion delivers the first commercially sold aberration corrector, bringing Haider, Rose, and Urban's fix to microscopes outside the original lab.", src: { label: 'Wiley: Nion — the company that transformed microscopy', url: 'https://analyticalscience.wiley.com/content/article-do/nion-company-transformed-microscopy' } },
+  { year: 2000, icon: '🪟', title: 'A pattern of light reveals the extra detail', topics: ['optical'], text: 'Mats Gustafsson shows that projecting a striped pattern of light onto a sample and combining several images computationally can beat the diffraction limit — structured illumination microscopy.', src: { label: 'Nature: Light Science & Applications, SIM review', url: 'https://www.nature.com/articles/s41377-023-01204-4' } },
+  { year: 2002, icon: '🔎', title: 'The blur, finally gone', topics: ['electron'], text: 'Peter Batson, Niklas Dellby, and Ondrej Krivanek achieve sub-angstrom resolution with a computer-controlled aberration corrector — the fix finally working in practice, sixty years after the blur was first understood.', src: { label: 'Nature 418, 617 (2002)', url: 'https://pubmed.ncbi.nlm.nih.gov/12167855/' } },
+  { year: 2004, icon: '🎬', title: 'A sheet of light', topics: ['optical'], text: 'Jan Huisken builds a microscope that lights up just one thin sheet of a sample at a time, imaging living embryos for hours without cooking them in laser light.', src: { label: 'Morgridge Institute: Light-sheet microscopy', url: 'https://morgridge.org/research/labs/huisken/light-sheet-microscopy/' } },
+  { year: 2004, icon: '📖', title: 'A recipe for solving any diffraction pattern', topics: ['ptycho'], text: "Andrew Faulkner and John Rodenburg publish the 'ptychographical iterative engine' — a step-by-step recipe that turns overlapping diffraction patterns into an image.", src: { label: 'Physics Today: Ptychography feature', url: 'https://physicstoday.aip.org/features/ptychography-a-solution-to-the-phase-problem' } },
+  { year: 2005, icon: '⏱️', title: 'Filming atoms move in real time', topics: ['electron'], text: "Ahmed Zewail's team combines ultrafast laser pulses with an electron microscope, capturing a stroboscopic movie of atoms rearranging themselves in femtoseconds.", src: { label: 'PNAS: Four-dimensional ultrafast electron microscopy', url: 'https://www.pnas.org/content/102/20/7069' } },
+  { year: 2006, icon: '🌟', title: 'Blinking molecules, one at a time', topics: ['optical'], text: 'Eric Betzig and Harald Hess switch individual glowing molecules on and off a few at a time, pinpointing each one precisely enough to beat the diffraction limit — a technique called PALM.', src: { label: 'Nobel Prize 2014: Press release', url: 'https://www.nobelprize.org/prizes/chemistry/2014/press-release/' } },
+  { year: 2006, icon: '💫', title: 'Blinking molecules, a different way', topics: ['optical'], text: "Xiaowei Zhuang's lab independently publishes STORM, a different chemical trick for making individual molecules blink on and off to build up a super-resolution image.", src: { label: 'Nobel Prize 2014: Press release', url: 'https://www.nobelprize.org/prizes/chemistry/2014/press-release/' } },
+  { year: 2007, icon: '🔦', title: 'Ptychography works with X-rays too', topics: ['xray', 'ptycho'], text: "John Rodenburg's team scans a focused X-ray spot across a sample far larger than the beam itself, stitching the overlapping diffraction patterns into one sharp image.", src: { label: 'Rodenburg et al. 2007, PRL', url: 'https://www.semanticscholar.org/paper/Hard-x-ray-lensless-imaging-of-extended-objects.-Rodenburg-Hurst/4c5a11e0f752d966c6d8ed71cd902f6c5ef06fb8' } },
+  { year: 2007, icon: '💎', title: "Britain's diamond of light", topics: ['xray'], text: "Diamond Light Source, the UK's national synchrotron, opens — its bright, focused X-ray beams becoming a workhorse for X-ray microscopy and ptychography experiments.", src: { label: 'Diamond Light Source: Official opening', url: 'https://www.diamond.ac.uk/Home/News/LatestNews/October2007.html' } },
+  { year: 2008, icon: '🌉', title: 'A bridge between two methods', topics: ['xray', 'ptycho'], text: 'Pierre Thibault and colleagues combine ptychography with a standard X-ray microscope technique, publishing what becomes the modern blueprint for X-ray ptychography.', src: { label: 'Thibault et al. 2008, Science', url: 'https://www.science.org/doi/10.1126/science.1158573' } },
+  { year: 2008, icon: '👻', title: 'Ordinary dyes learn to blink too', topics: ['optical'], text: "Mike Heilemann's team shows that everyday fluorescent dyes, not just special photoswitchable proteins, can be coaxed into blinking on and off — making super-resolution imaging (dSTORM) much easier to adopt.", src: { label: 'Nature Protocols: Direct STORM', url: 'https://www.nature.com/articles/nprot.2011.336' } },
+  { year: 2009, icon: '🚀', title: 'A faster recipe for the same trick', topics: ['ptycho'], text: "Andrew Maiden and John Rodenburg publish 'ePIE,' a faster ptychography recipe that also figures out the shape of the illuminating beam itself, no longer needing it known in advance.", src: { label: 'Physics Today: Ptychography feature', url: 'https://physicstoday.aip.org/features/ptychography-a-solution-to-the-phase-problem' } },
+  { year: 2009, icon: '💥', title: 'The brightest X-ray flashes ever made', topics: ['xray'], text: "The Linac Coherent Light Source fires the world's first hard X-ray free-electron laser, making X-ray pulses a billion times brighter than anything before it.", src: { label: 'SLAC: What is an X-ray free-electron laser?', url: 'https://www6.slac.stanford.edu/research/slac-science-explained/xfels' } },
+  { year: 2009, icon: '🕸️', title: 'Seeing the bonds inside a single molecule', topics: ['probe'], text: 'Leo Gross and colleagues at IBM Zurich attach a single carbon monoxide molecule to their AFM tip and, for the first time, image the individual chemical bonds holding one molecule together.', src: { label: 'Nature Nanotechnology', url: 'https://www.nature.com/articles/nnano.2009.283' } },
+  { year: 2010, icon: '🍰', title: 'Turning slices into a 3D map', topics: ['xray', 'ptycho'], text: "Martin Dierolf's team rotates a sample and repeats ptychography from every angle, stacking the results into a full three-dimensional map of what's inside.", src: { label: 'Dierolf et al. 2010, Nature', url: 'https://www.nature.com/articles/nature09419' } },
+  { year: 2011, icon: '📐', title: 'Watching a crystal bend and stretch', topics: ['ptycho', 'xray'], text: 'Marc Godard and colleagues combine ptychography with Bragg diffraction to map the tiny internal strains inside a single nanocrystal — not just its shape, but how its atomic lattice is distorted.', src: { label: 'Physical Review B 84, 144109 (2011)', url: 'https://journals.aps.org/prb/abstract/10.1103/PhysRevB.84.144109' } },
+  { year: 2011, icon: '🧨', title: 'Outrunning your own destruction', topics: ['xray'], text: "Henry Chapman's team fires a femtosecond-long X-ray flash at a crystal so briefly that the diffraction pattern is captured before the intense pulse destroys the sample — 'diffraction before destruction.'", src: { label: 'PMC: Diffraction before destruction', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4052855/' } },
+  { year: 2010, icon: '🧬', title: 'Using DNA itself as a blinking light', topics: ['optical'], text: "Ralf Jungmann's team invents DNA-PAINT, where short DNA strands briefly and repeatedly bind their target and let go, creating the blinking needed for super-resolution imaging with everyday chemistry.", src: { label: 'Nature Protocols: Super-resolution with DNA-PAINT', url: 'https://www.nature.com/articles/nprot.2017.024' } },
+  { year: 2011, icon: '🌸', title: "Japan's own X-ray laser", topics: ['xray'], text: "SACLA, Japan's first X-ray free-electron laser, fires its first pulses at RIKEN, joining LCLS as one of the only two hard-X-ray lasers on Earth at the time.", src: { label: 'RIKEN: First X-ray lasing of SACLA', url: 'https://www.riken.jp/en/news_pubs/research_news/pr/2011/20110607/' } },
+  { year: 2012, icon: '🎥', title: 'A camera that counts electrons one by one', topics: ['electron'], text: "New direct electron detectors start counting individual electrons instead of converting them to light first, triggering a 'resolution revolution' in cryo-EM.", src: { label: 'Wiley: Direct Electron and the resolution revolution', url: 'https://analyticalscience.wiley.com/content/news-do/direct-electron-driving-resolution-revolution' } },
+  { year: 2012, icon: '💻', title: 'Software that untangles the noise', topics: ['electron'], text: 'Sjors Scheres releases RELION, cryo-EM software that uses statistics to pull a clean 3D structure out of thousands of noisy, blurry particle images.', src: { label: 'MRC-LMB: Scheres group impact', url: 'https://www2.mrc-lmb.cam.ac.uk/groups/scheres/impact.html' } },
+  { year: 2012, icon: '📚', title: 'Stacking ptychography into slices', topics: ['ptycho'], text: "Andrew Maiden, Peter Humphry, and John Rodenburg extend ptychography to samples too thick for a single flat approximation, reconstructing them slice by slice through the sample's depth.", src: { label: 'JOSA A 29, 1606 (2012)', url: 'https://opg.optica.org/josaa/abstract.cfm?uri=josaa-29-8-1606' } },
+  { year: 2013, icon: '📷', title: 'Ptychography, but with an ordinary camera lens', topics: ['ptycho', 'optical'], text: 'Guoan Zheng, Roarke Horstmeyer, and Changhuei Yang show that ptychography-style tricks can turn a cheap, low-power microscope lens into a gigapixel, high-resolution one.', src: { label: 'Wikipedia: Fourier ptychography', url: 'https://en.wikipedia.org/wiki/Fourier_ptychography' } },
+  { year: 2013, icon: '🌫️', title: 'A fix for messy light sources', topics: ['ptycho'], text: "Pierre Thibault and Andreas Menzel show ptychography can work even with imperfect, partially-coherent light sources by reconstructing multiple overlapping beam 'states' at once.", src: { label: 'Physics Today: Ptychography feature', url: 'https://physicstoday.aip.org/features/ptychography-a-solution-to-the-phase-problem' } },
+  { year: 2013, icon: '📶', title: 'Ptychography without the far field', topics: ['ptycho'], text: 'Mirko Stockmar and colleagues show ptychography also works up close, using the near-field diffraction pattern right behind the sample instead of the usual far-field pattern.', src: { label: 'Scientific Reports 3, 1927 (2013)', url: 'https://www.nature.com/articles/srep01927' } },
+  { year: 2014, icon: '🥇', title: 'A Nobel for seeing smaller', topics: ['optical'], text: 'Eric Betzig, Stefan Hell, and William Moerner share the Nobel Prize in Chemistry for finding ways to beat the diffraction limit with light microscopy.', src: { label: 'Nobel Prize 2014: Press release', url: 'https://www.nobelprize.org/prizes/chemistry/2014/press-release/' } },
+  { year: 2014, icon: '🐟', title: 'A lattice of light for living cells', topics: ['optical'], text: 'Eric Betzig\'s team shapes a light sheet into a thin lattice pattern, filming fast 3D biology inside living cells for hours without harming them.', src: { label: 'Science 346, 1257998 (2014)', url: 'https://www.science.org/doi/10.1126/science.1257998' } },
+  { year: 2014, icon: '🥽', title: 'A phase plate that never wears out', topics: ['electron'], text: "Radostin Danev and Wolfgang Baumeister invent the Volta phase plate, a simple heated metal film that boosts contrast in cryo-EM images without the fringing artifacts or short lifespan of earlier phase plates.", src: { label: 'PNAS: Volta potential phase plate', url: 'https://www.pnas.org/content/111/44/15635' } },
+  { year: 2015, icon: '🎈', title: 'Blowing up the sample instead of the lens', topics: ['optical'], text: "Ed Boyden's team infuses a specimen with a swellable gel and physically expands it to about 4.5 times its size in water — turning an ordinary microscope into a super-resolution one.", src: { label: 'Science 347, 543 (2015)', url: 'https://www.science.org/doi/10.1126/science.1260088' } },
+  { year: 2017, icon: '🇪🇺', title: "Europe's own X-ray laser", topics: ['xray'], text: 'The European XFEL near Hamburg begins operating, firing up to 27,000 X-ray flashes per second — by far the fastest X-ray laser in the world.', src: { label: 'Nature Photonics: Europe turns on bright X-ray source', url: 'https://www.nature.com/articles/s41566-017-0025-z' } },
+  { year: 2017, icon: '🧬', title: 'A Nobel for freezing molecules in action', topics: ['electron'], text: 'Jacques Dubochet, Joachim Frank, and Richard Henderson share the Nobel Prize in Chemistry for developing cryo-electron microscopy.', src: { label: 'Nobel Prize 2017: Summary', url: 'https://www.nobelprize.org/prizes/chemistry/2017/summary/' } },
+  { year: 2017, icon: '📍', title: 'Finding a single molecule with almost no light', topics: ['optical'], text: "Francisco Balzarotti and Stefan Hell's team pinpoint a single glowing molecule to nanometer precision using a doughnut-shaped beam and only a handful of detected photons — a technique called MINFLUX.", src: { label: 'Science 355, 606 (2017)', url: 'https://bibliotecadigital.exactas.uba.ar/collection/paper/document/paper_00368075_v355_n6325_p606_Balzarotti' } },
+  { year: 2018, icon: '📸', title: 'A record-breaking detector', topics: ['electron', 'ptycho'], text: "A new detector at Cornell, combined with the ptychography trick from decades earlier, images a single-atom defect sharper than ever before.", src: { label: 'Cornell Chronicle', url: 'https://news.cornell.edu/stories/2018/07/electron-microscope-detector-achieves-record-resolution' } },
+  { year: 2020, icon: '🤖', title: 'Letting a neural network learn the trick', topics: ['ptycho'], text: 'Researchers train a deep neural network to jump straight from a diffraction pattern to a reconstructed image, skipping the usual iterative recipe entirely.', src: { label: 'PubMed: Deep neural networks in single-shot ptychography', url: 'https://pubmed.ncbi.nlm.nih.gov/32679958/' } },
+  { year: 2021, icon: '🏆', title: 'As sharp as physics allows', topics: ['electron', 'ptycho'], text: 'The same team doubles their own record — the picture is now so precise the only blur left is atoms wiggling from heat.', src: { label: 'Chen et al. 2021, Science', url: 'https://www.science.org/doi/10.1126/science.abg2533' } },
+];
+
+const LB_ENDPOINT = '/api/games/microscopy-timeline/leaderboard';
+
+let selectedTopics = new Set();
+let playerName = '';
+let streak = 0;
+let bestStreak = 0;
+
+let deck, placed, current, lives, correct, attempts, gameOver, discarded, poolTotal;
+
+function loadProfile() {
+  try {
+    playerName = localStorage.getItem('mt_name') || '';
+    streak = parseInt(localStorage.getItem('mt_streak') || '0', 10) || 0;
+    bestStreak = parseInt(localStorage.getItem('mt_best') || '0', 10) || 0;
+  } catch (e) { /* localStorage unavailable — play without persistence */ }
+}
+
+function saveProfile() {
+  try {
+    localStorage.setItem('mt_name', playerName);
+    localStorage.setItem('mt_streak', String(streak));
+    localStorage.setItem('mt_best', String(bestStreak));
+  } catch (e) { /* ignore */ }
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function poolForSelection() {
+  if (selectedTopics.size === 0) return EVENTS;
+  return EVENTS.filter(e => e.topics.some(t => selectedTopics.has(t)));
+}
+
+// ── Setup screen ───────────────────────────────────────────────────────────
+
+function renderSetup() {
+  document.getElementById('player-name').value = playerName;
+
+  const pills = document.getElementById('topic-pills');
+  pills.innerHTML = '';
+  TOPICS.forEach(t => {
+    const count = EVENTS.filter(e => e.topics.includes(t.id)).length;
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'topic-pill' + (selectedTopics.has(t.id) ? ' selected' : '');
+    pill.innerHTML = `${t.label} <span class="count">${count}</span>`;
+    pill.onclick = () => {
+      if (selectedTopics.has(t.id)) selectedTopics.delete(t.id); else selectedTopics.add(t.id);
+      renderSetup();
+    };
+    pills.appendChild(pill);
+  });
+
+  const total = poolForSelection().length;
+  document.getElementById('deck-count').textContent = `${total} event${total === 1 ? '' : 's'} in this deck`;
+  document.getElementById('start-btn').disabled = total < 2;
+
+  const streakLine = document.getElementById('streak-line');
+  streakLine.textContent = (streak > 0 || bestStreak > 0)
+    ? `Current streak: ${streak} 🔥 · Your best: ${bestStreak}`
+    : '';
+}
+
+function showSetup() {
+  document.getElementById('game-screen').hidden = true;
+  document.getElementById('overlay').hidden = true;
+  document.getElementById('setup-screen').hidden = false;
+  renderSetup();
+}
+
+document.getElementById('player-name').addEventListener('input', (e) => {
+  playerName = e.target.value;
+});
+
+document.getElementById('start-btn').onclick = () => {
+  playerName = document.getElementById('player-name').value.trim() || 'Anonymous Scientist';
+  saveProfile();
+  document.getElementById('setup-screen').hidden = true;
+  document.getElementById('game-screen').hidden = false;
+  const topicNames = selectedTopics.size === 0
+    ? 'all topics'
+    : [...selectedTopics].map(id => TOPICS.find(t => t.id === id).label).join(', ');
+  document.getElementById('game-sub').textContent = `Playing: ${topicNames}. Click a gap in the timeline to place the card in your hand.`;
+  startGame();
+};
+
+document.getElementById('quit-btn').onclick = showSetup;
+document.getElementById('overlay-topics-btn').onclick = showSetup;
+
+// ── Leaderboard ──────────────────────────────────────────────────────────
+
+async function loadLeaderboard() {
+  const el = document.getElementById('lb-list');
+  el.textContent = 'Loading…';
+  try {
+    const res = await fetch(LB_ENDPOINT);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      el.textContent = 'No streaks yet — be the first!';
+      return;
+    }
+    el.innerHTML = '';
+    data.forEach((row, i) => {
+      const div = document.createElement('div');
+      div.className = 'lb-row';
+      const rank = document.createElement('span');
+      rank.className = 'lb-rank';
+      rank.textContent = `#${i + 1}`;
+      const name = document.createElement('span');
+      name.className = 'lb-name';
+      name.textContent = row.player_name;
+      const streakEl = document.createElement('span');
+      streakEl.className = 'lb-streak';
+      streakEl.textContent = `🔥 ${row.best_streak}`;
+      div.append(rank, name, streakEl);
+      el.appendChild(div);
+    });
+  } catch (e) {
+    el.textContent = 'Could not load the leaderboard right now.';
+  }
+}
+
+async function submitScore(name, streakVal) {
+  try {
+    await fetch(LB_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, streak: streakVal }),
+    });
+  } catch (e) { /* best effort — a failed submission shouldn't break the game */ }
+}
+
+function openLeaderboard() {
+  document.getElementById('lb-overlay').hidden = false;
+  loadLeaderboard();
+}
+document.getElementById('lb-open-btn').onclick = openLeaderboard;
+document.getElementById('overlay-lb-btn').onclick = openLeaderboard;
+document.getElementById('lb-close-btn').onclick = () => { document.getElementById('lb-overlay').hidden = true; };
+
+// ── Game ─────────────────────────────────────────────────────────────────
+
+function startGame() {
+  const pool = shuffle(poolForSelection());
+  poolTotal = pool.length;
+  placed = [pool.pop()];
+  deck = pool;
+  current = deck.shift();
+  lives = 3;
+  correct = 0;
+  attempts = 0;
+  gameOver = false;
+  discarded = [];
+  document.getElementById('overlay').hidden = true;
+  render();
+}
+
+function attemptPlace(slotIndex) {
+  if (!current || gameOver) return;
+  const lower = placed[slotIndex - 1];
+  const upper = placed[slotIndex];
+  const ok = (!lower || current.year >= lower.year) && (!upper || current.year <= upper.year);
+  attempts++;
+  if (ok) {
+    placed.splice(slotIndex, 0, current);
+    correct++;
+  } else {
+    lives--;
+    discarded.push(current);
+  }
+  toast(ok, current);
+  current = null;
+  render();
+  setTimeout(() => {
+    if (lives <= 0) { endGame(false); return; }
+    current = deck.shift() || null;
+    if (!current) { endGame(true); return; }
+    render();
+  }, 2600);
+}
+
+function toast(ok, event) {
+  const t = document.getElementById('toast');
+  const verdict = ok ? `✅ Correct — ${event.year}` : `❌ Not quite — that was ${event.year}`;
+  const link = event.src
+    ? ` · <a href="${event.src.url}" target="_blank" rel="noopener noreferrer">${event.src.label}</a>`
+    : '';
+  t.innerHTML = verdict + link;
+  t.className = 'toast show ' + (ok ? 'good' : 'bad');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.className = 'toast'; }, 2500);
+}
+
+function endGame(won) {
+  gameOver = true;
+  render();
+
+  if (won) {
+    streak++;
+    if (streak > bestStreak) {
+      bestStreak = streak;
+      submitScore(playerName, bestStreak);
+    }
+  } else {
+    streak = 0;
+  }
+  saveProfile();
+
+  const missedYears = new Set(discarded.map(e => e.year));
+  const full = [...placed, ...discarded, ...(current ? [current] : []), ...deck].sort((a, b) => a.year - b.year);
+  document.getElementById('overlay-title').textContent = won
+    ? '🎉 You placed the whole timeline!'
+    : 'Out of lives';
+  document.getElementById('overlay-score').textContent = `${correct} of ${attempts} placements correct`;
+  document.getElementById('overlay-streaks').textContent = `Current streak: ${streak} 🔥 · Your best: ${bestStreak}`;
+  document.getElementById('overlay-recap').innerHTML = full.map(e =>
+    `<div class="recap-row"${missedYears.has(e.year) ? ' style="opacity:0.55"' : ''}><span class="y">${e.year}</span><span class="t">${missedYears.has(e.year) ? '✗ missed — ' : ''}${e.icon} ${e.title}</span></div>`
+  ).join('');
+  document.getElementById('overlay').hidden = false;
+}
+
+function cardTile(e) {
+  const d = document.createElement('div');
+  d.className = 'card-tile';
+  d.innerHTML = `<div class="icon">${e.icon}</div><div class="year">${e.year}</div><div class="title">${e.title}</div>`;
+  return d;
+}
+
+function render() {
+  document.getElementById('lives').textContent = '❤️'.repeat(Math.max(lives, 0)) + '🖤'.repeat(Math.max(3 - lives, 0));
+  document.getElementById('progress').textContent = `${placed.length - 1} / ${poolTotal - 1} placed`;
+
+  const hand = document.getElementById('hand');
+  if (current) {
+    hand.className = 'hand';
+    hand.innerHTML = `<div class="icon">${current.icon}</div><div class="body">
+      <p class="title">${current.title}</p>
+      <p class="text">${current.text}</p>
+      <span class="year-hidden">YEAR: ?????</span>
+    </div>`;
+  } else {
+    hand.className = 'hand empty';
+    hand.textContent = gameOver ? 'Game over — see recap below' : 'Drawing next card…';
+  }
+
+  const timeline = document.getElementById('timeline');
+  timeline.innerHTML = '';
+  for (let i = 0; i <= placed.length; i++) {
+    const slot = document.createElement('button');
+    slot.className = 'slot';
+    slot.disabled = !current || gameOver;
+    slot.innerHTML = '<span>+</span>';
+    slot.onclick = () => attemptPlace(i);
+    timeline.appendChild(slot);
+    if (placed[i]) timeline.appendChild(cardTile(placed[i]));
+  }
+}
+
+document.getElementById('replay-btn').onclick = startGame;
+
+loadProfile();
+showSetup();
+</script>
+</body>
+</html>
