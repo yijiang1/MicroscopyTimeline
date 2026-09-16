@@ -38,16 +38,6 @@
     border: 1px solid var(--rule); font-size: 16px; background: #fff; color: var(--ink);
     font-family: inherit;
   }
-  .topic-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-  .topic-pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 10px 14px; border-radius: 999px; border: 1px solid var(--rule);
-    background: #fff; color: var(--ink); font-size: 13px; font-weight: 600;
-    cursor: pointer; user-select: none; transition: all 0.12s; touch-action: manipulation;
-  }
-  .topic-pill:hover { border-color: var(--accent); }
-  .topic-pill.selected { background: #efece3; border-color: #c9c2ab; }
-  .topic-pill .count { color: var(--muted); font-weight: 400; }
   .deck-count { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
   .setup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; align-items: center; }
   .streak-line { color: var(--muted); font-size: 13px; margin-top: 14px; }
@@ -173,19 +163,19 @@
   .lb-rank { width: 28px; font-weight: 700; color: var(--muted); }
   .lb-name { flex: 1; font-weight: 600; }
   .lb-streak { font-weight: 700; color: var(--accent); }
+  .lb-row.you { background: rgba(163,114,44,0.08); border-radius: 8px; padding: 8px 6px; margin: 4px 0; border-bottom: none; }
+  .lb-sep { text-align: center; color: var(--muted); font-size: 12px; padding: 4px 0; }
 </style>
 </head>
 <body>
 
 <div class="wrap" id="setup-screen">
   <h1>🔬 Microscopy Through Time</h1>
-  <p class="sub">A timeline card game. Pick your topics, then place each discovery in the right chronological order.</p>
+  <p class="sub">A timeline card game spanning optical, electron, X-ray, and scanning-probe microscopy, and ptychography. Place each discovery in the right chronological order.</p>
 
   <p class="field-label">Your name (for the leaderboard)</p>
   <input class="name-input" id="player-name" maxlength="24" placeholder="Anonymous Scientist" />
 
-  <h2>Topics <span class="muted-inline">— tap to toggle</span></h2>
-  <div class="topic-pills" id="topic-pills"></div>
   <p class="deck-count" id="deck-count"></p>
 
   <div class="setup-actions">
@@ -210,7 +200,7 @@
   <p class="instructions">Click a gap below to place the card in your hand</p>
 
   <div class="timeline-scroll"><div class="timeline" id="timeline"></div></div>
-  <p class="quit-row"><button class="link" id="quit-btn">← choose different topics</button></p>
+  <p class="quit-row"><button class="link" id="quit-btn">← back to menu</button></p>
 </div>
 
 <div class="overlay" id="overlay" hidden>
@@ -221,8 +211,9 @@
     <div id="overlay-recap"></div>
     <div class="overlay-actions">
       <button class="primary" id="replay-btn">Play again</button>
-      <button class="ghost" id="overlay-topics-btn">Choose topics</button>
+      <button class="ghost" id="share-btn">📸 Share my streak</button>
       <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
+      <button class="ghost" id="overlay-menu-btn">Main menu</button>
     </div>
   </div>
 </div>
@@ -238,14 +229,6 @@
 </div>
 
 <script>
-const TOPICS = [
-  { id: 'optical', label: 'Optical Microscopy' },
-  { id: 'electron', label: 'Electron Microscopy' },
-  { id: 'probe', label: 'Scanning Probe' },
-  { id: 'xray', label: 'X-ray Microscopy' },
-  { id: 'ptycho', label: 'Ptychography' },
-];
-
 const EVENTS = [
   { year: 1661, icon: '🩸', title: 'The missing link between arteries and veins', topics: ['optical'], text: "Marcello Malpighi spots capillaries under his microscope — the tiny vessels connecting arteries to veins that William Harvey had predicted must exist but never actually seen.", src: { label: 'Britannica: Marcello Malpighi', url: 'https://www.britannica.com/biography/Marcello-Malpighi' } },
   { year: 1665, icon: '🔬', title: 'Micrographia', topics: ['optical'], text: 'English scientist Robert Hooke looks at a sliver of cork through his microscope and draws what he sees — tiny box-like structures he names "cells."', src: { label: 'History.com', url: 'https://www.history.com/articles/timeline-microscope' } },
@@ -361,12 +344,12 @@ const EVENTS = [
 
 const LB_ENDPOINT = '/api/games/microscopy-timeline/leaderboard';
 
-let selectedTopics = new Set(TOPICS.map(t => t.id));
 let playerName = '';
 let streak = 0;
 let bestStreak = 0;
 
 let deck, placed, current, lives, correct, attempts, gameOver, discarded, poolTotal;
+let lastGameResult = null;
 
 function loadProfile() {
   try {
@@ -393,33 +376,11 @@ function shuffle(arr) {
   return a;
 }
 
-function poolForSelection() {
-  return EVENTS.filter(e => e.topics.some(t => selectedTopics.has(t)));
-}
-
 // ── Setup screen ───────────────────────────────────────────────────────────
 
 function renderSetup() {
   document.getElementById('player-name').value = playerName;
-
-  const pills = document.getElementById('topic-pills');
-  pills.innerHTML = '';
-  TOPICS.forEach(t => {
-    const count = EVENTS.filter(e => e.topics.includes(t.id)).length;
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'topic-pill' + (selectedTopics.has(t.id) ? ' selected' : '');
-    pill.innerHTML = `${t.label} <span class="count">${count}</span>`;
-    pill.onclick = () => {
-      if (selectedTopics.has(t.id)) selectedTopics.delete(t.id); else selectedTopics.add(t.id);
-      renderSetup();
-    };
-    pills.appendChild(pill);
-  });
-
-  const total = poolForSelection().length;
-  document.getElementById('deck-count').textContent = `${total} event${total === 1 ? '' : 's'} in this deck`;
-  document.getElementById('start-btn').disabled = total < 2;
+  document.getElementById('deck-count').textContent = `${EVENTS.length} events, shuffled fresh each game`;
 
   const streakLine = document.getElementById('streak-line');
   streakLine.textContent = (streak > 0 || bestStreak > 0)
@@ -443,44 +404,50 @@ document.getElementById('start-btn').onclick = () => {
   saveProfile();
   document.getElementById('setup-screen').hidden = true;
   document.getElementById('game-screen').hidden = false;
-  const topicNames = selectedTopics.size === TOPICS.length
-    ? 'all topics'
-    : [...selectedTopics].map(id => TOPICS.find(t => t.id === id).label).join(', ');
-  document.getElementById('game-sub').textContent = `Playing: ${topicNames}. Click a gap in the timeline to place the card in your hand.`;
   startGame();
 };
 
 document.getElementById('quit-btn').onclick = showSetup;
-document.getElementById('overlay-topics-btn').onclick = showSetup;
+document.getElementById('overlay-menu-btn').onclick = showSetup;
 
 // ── Leaderboard ──────────────────────────────────────────────────────────
+
+function lbRow(rank, name, streakVal, highlight) {
+  const div = document.createElement('div');
+  div.className = 'lb-row' + (highlight ? ' you' : '');
+  const rankEl = document.createElement('span');
+  rankEl.className = 'lb-rank';
+  rankEl.textContent = `#${rank}`;
+  const nameEl = document.createElement('span');
+  nameEl.className = 'lb-name';
+  nameEl.textContent = name;
+  const streakEl = document.createElement('span');
+  streakEl.className = 'lb-streak';
+  streakEl.textContent = `🔥 ${streakVal}`;
+  div.append(rankEl, nameEl, streakEl);
+  return div;
+}
 
 async function loadLeaderboard() {
   const el = document.getElementById('lb-list');
   el.textContent = 'Loading…';
   try {
-    const res = await fetch(LB_ENDPOINT);
+    const url = playerName ? `${LB_ENDPOINT}?name=${encodeURIComponent(playerName)}` : LB_ENDPOINT;
+    const res = await fetch(url);
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
+    const top = Array.isArray(data) ? data : (data.top || []);
+    if (top.length === 0) {
       el.textContent = 'No streaks yet — be the first!';
       return;
     }
     el.innerHTML = '';
-    data.forEach((row, i) => {
-      const div = document.createElement('div');
-      div.className = 'lb-row';
-      const rank = document.createElement('span');
-      rank.className = 'lb-rank';
-      rank.textContent = `#${i + 1}`;
-      const name = document.createElement('span');
-      name.className = 'lb-name';
-      name.textContent = row.player_name;
-      const streakEl = document.createElement('span');
-      streakEl.className = 'lb-streak';
-      streakEl.textContent = `🔥 ${row.best_streak}`;
-      div.append(rank, name, streakEl);
-      el.appendChild(div);
-    });
+    top.forEach((row, i) => el.appendChild(lbRow(i + 1, row.player_name, row.best_streak, false)));
+
+    const you = !Array.isArray(data) && data.you;
+    if (you && you.rank > top.length) {
+      el.appendChild(Object.assign(document.createElement('div'), { className: 'lb-sep', textContent: '···' }));
+      el.appendChild(lbRow(you.rank, you.player_name, you.best_streak, true));
+    }
   } catch (e) {
     el.textContent = 'Could not load the leaderboard right now.';
   }
@@ -507,7 +474,7 @@ document.getElementById('lb-close-btn').onclick = () => { document.getElementByI
 // ── Game ─────────────────────────────────────────────────────────────────
 
 function startGame() {
-  const pool = shuffle(poolForSelection());
+  const pool = shuffle(EVENTS);
   poolTotal = pool.length;
   placed = [pool.pop()];
   deck = pool;
@@ -571,6 +538,7 @@ function endGame(won) {
     streak = 0;
   }
   saveProfile();
+  lastGameResult = { won, streak, bestStreak, correct, attempts };
 
   const missed = new Set(discarded);
   const full = [...placed, ...discarded, ...(current ? [current] : [])].sort((a, b) => a.year - b.year);
@@ -584,6 +552,75 @@ function endGame(won) {
   ).join('');
   document.getElementById('overlay').hidden = false;
 }
+
+// ── Share image ──────────────────────────────────────────────────────────
+
+function buildShareCanvas(result) {
+  const c = document.createElement('canvas');
+  c.width = 1200; c.height = 630;
+  const ctx = c.getContext('2d');
+  const cx = c.width / 2;
+
+  ctx.fillStyle = '#f7f5ef';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#a3722c';
+  ctx.fillRect(0, 0, c.width, 12);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#6b6558';
+  ctx.font = '600 32px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('🔬 MICROSCOPY THROUGH TIME', cx, 100);
+
+  const headline = result.won ? result.streak : result.bestStreak;
+  ctx.fillStyle = '#a3722c';
+  ctx.font = '800 240px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(String(headline), cx, 380);
+
+  ctx.fillStyle = '#221d13';
+  ctx.font = '700 42px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(result.won ? 'WIN STREAK 🔥' : 'BEST STREAK 🔥', cx, 440);
+
+  ctx.fillStyle = '#6b6558';
+  ctx.font = '400 28px -apple-system, "Segoe UI", Roboto, sans-serif';
+  const name = playerName || 'Anonymous Scientist';
+  ctx.fillText(`${name} · ${result.correct}/${result.attempts} placed correctly this round`, cx, 500);
+
+  ctx.fillStyle = '#a3722c';
+  ctx.font = '600 24px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Play at ptychohub.com/kids', cx, 580);
+
+  return c;
+}
+
+function shareCaption(result) {
+  return result.won
+    ? `I just hit a ${result.streak}-win streak in Microscopy Through Time! 🔬🔥`
+    : `I got ${result.correct}/${result.attempts} placements right in Microscopy Through Time (best streak: ${result.bestStreak}) 🔬`;
+}
+
+document.getElementById('share-btn').onclick = async () => {
+  if (!lastGameResult) return;
+  const btn = document.getElementById('share-btn');
+  const original = btn.textContent;
+  const blob = await new Promise(res => buildShareCanvas(lastGameResult).toBlob(res, 'image/png'));
+  const file = new File([blob], 'microscopy-timeline-streak.png', { type: 'image/png' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Microscopy Through Time', text: shareCaption(lastGameResult) });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name; a.click();
+  URL.revokeObjectURL(url);
+  btn.textContent = '✅ Saved!';
+  setTimeout(() => { btn.textContent = original; }, 1600);
+};
 
 function cardTile(e) {
   const d = document.createElement('div');
