@@ -198,7 +198,7 @@
 
   <div class="overlay-actions" id="recap-panel" hidden>
     <button class="primary" id="replay-btn">Play again</button>
-    <button class="ghost" id="share-btn">📸 Share my streak</button>
+    <button class="ghost" id="share-btn">📸 Share my timeline</button>
     <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
     <button class="ghost" id="overlay-menu-btn">Main menu</button>
   </div>
@@ -517,54 +517,118 @@ function endGame(won) {
     streak = 0;
   }
   saveProfile();
-  lastGameResult = { won, streak, bestStreak, correct, attempts };
+  lastGameResult = { won, streak, bestStreak, correct, attempts, placed };
 
   document.getElementById('recap-panel').hidden = false;
 }
 
 // ── Share image ──────────────────────────────────────────────────────────
 
+function wrapLines(ctx, text, maxWidth, maxLines) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      if (lines.length === maxLines) return lines;
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, maxLines);
+}
+
 function buildShareCanvas(result) {
+  const width = 1200;
+  const cols = Math.min(8, result.placed.length);
+  const gap = 10, padX = 50, cardH = 108;
+  const cardW = Math.floor((width - padX * 2 - (cols - 1) * gap) / cols);
+  const rows = Math.ceil(result.placed.length / cols);
+
+  const showCompleted = result.won;
+  const showStreak = result.streak > 1;
+  const gridTop = 130 + (showCompleted ? 30 : 0) + (showStreak ? 30 : 0);
+  const gridH = rows * cardH + (rows - 1) * gap;
+  const height = gridTop + gridH + 70;
+
   const c = document.createElement('canvas');
-  c.width = 1200; c.height = 630;
+  c.width = width; c.height = height;
   const ctx = c.getContext('2d');
-  const cx = c.width / 2;
+  const cx = width / 2;
 
   ctx.fillStyle = '#f7f5ef';
-  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = '#a3722c';
-  ctx.fillRect(0, 0, c.width, 12);
+  ctx.fillRect(0, 0, width, 10);
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#6b6558';
-  ctx.font = '600 32px -apple-system, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('🔬 MICROSCOPY THROUGH TIME', cx, 100);
+  ctx.font = '700 30px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('🔬 MICROSCOPY THROUGH TIME', cx, 60);
 
-  const headline = result.won ? result.streak : result.bestStreak;
-  ctx.fillStyle = '#a3722c';
-  ctx.font = '800 240px -apple-system, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(String(headline), cx, 380);
-
-  ctx.fillStyle = '#221d13';
-  ctx.font = '700 42px -apple-system, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(result.won ? 'WIN STREAK 🔥' : 'BEST STREAK 🔥', cx, 440);
-
-  ctx.fillStyle = '#6b6558';
-  ctx.font = '400 28px -apple-system, "Segoe UI", Roboto, sans-serif';
   const name = playerName || 'Anonymous Scientist';
-  ctx.fillText(`${name} · ${result.correct}/${result.attempts} placed correctly this round`, cx, 500);
+  ctx.fillStyle = '#221d13';
+  ctx.font = '600 22px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(`${name}'s timeline · ${result.correct}/${result.attempts} placed correctly`, cx, 98);
 
+  let y = 130;
+  if (showCompleted) {
+    ctx.fillStyle = '#1f9e6e';
+    ctx.font = '700 24px -apple-system, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('🏆 COMPLETED THE FULL TIMELINE', cx, y);
+    y += 30;
+  }
+  if (showStreak) {
+    ctx.fillStyle = '#a3722c';
+    ctx.font = '600 20px -apple-system, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(`🔥 Win streak: ${result.streak}`, cx, y);
+    y += 30;
+  }
+
+  const gridLeft = (width - (cols * cardW + (cols - 1) * gap)) / 2;
+  result.placed.forEach((e, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = gridLeft + col * (cardW + gap);
+    const cardY = gridTop + row * (cardH + gap);
+
+    ctx.fillStyle = '#f0ede3';
+    ctx.strokeStyle = '#ddd6c5';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, cardY, cardW, cardH, 8);
+    ctx.fill(); ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = '22px -apple-system, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#221d13';
+    ctx.fillText(e.icon, x + cardW / 2, cardY + 28);
+
+    ctx.font = '700 15px ui-monospace, monospace';
+    ctx.fillStyle = '#a3722c';
+    ctx.fillText(String(e.year), x + cardW / 2, cardY + 50);
+
+    ctx.font = '400 10.5px -apple-system, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#6b6558';
+    wrapLines(ctx, e.title, cardW - 12, 2).forEach((line, li) =>
+      ctx.fillText(line, x + cardW / 2, cardY + 68 + li * 13));
+  });
+
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#a3722c';
-  ctx.font = '600 24px -apple-system, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('Play at ptychohub.com/kids', cx, 580);
+  ctx.font = '600 20px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Play at ptychohub.com/kids', cx, height - 24);
 
   return c;
 }
 
 function shareCaption(result) {
   return result.won
-    ? `I just hit a ${result.streak}-win streak in Microscopy Through Time! 🔬🔥`
-    : `I got ${result.correct}/${result.attempts} placements right in Microscopy Through Time (best streak: ${result.bestStreak}) 🔬`;
+    ? `I placed all ${result.placed.length} discoveries in order in Microscopy Through Time! 🔬🏆`
+    : `I placed ${result.correct}/${result.attempts} discoveries in order in Microscopy Through Time — here's my timeline 🔬`;
 }
 
 document.getElementById('share-btn').onclick = async () => {
@@ -572,7 +636,7 @@ document.getElementById('share-btn').onclick = async () => {
   const btn = document.getElementById('share-btn');
   const original = btn.textContent;
   const blob = await new Promise(res => buildShareCanvas(lastGameResult).toBlob(res, 'image/png'));
-  const file = new File([blob], 'microscopy-timeline-streak.png', { type: 'image/png' });
+  const file = new File([blob], 'microscopy-timeline.png', { type: 'image/png' });
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
