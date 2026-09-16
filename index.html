@@ -60,12 +60,6 @@
   }
 
   /* ── Game screen ──────────────────────────────────────────────────── */
-  .hud {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px; font-size: 14px; color: var(--muted);
-  }
-  .lives { font-size: 16px; letter-spacing: 2px; }
-
   .hand {
     background: var(--panel);
     border: 1px solid var(--rule);
@@ -161,12 +155,8 @@
     .overlay-card { padding: 20px; }
   }
   .overlay-card h2 { margin: 0 0 6px; font-size: 22px; }
-  .overlay-card .score { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
-  .overlay-card .streaks { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-  .recap-row { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
-  .recap-row .y { font-family: ui-monospace, monospace; color: var(--accent); width: 42px; flex-shrink: 0; }
-  .recap-row .t { color: var(--ink); }
   .overlay-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .overlay-actions[hidden] { display: none; }
 
   .lb-row {
     display: flex; align-items: center; gap: 10px; padding: 8px 0;
@@ -202,33 +192,21 @@
   <h1>🔬 Microscopy Through Time</h1>
   <p class="sub" id="game-sub">Read each discovery, then click a gap in the timeline to place it in the right order.</p>
 
-  <div class="hud">
-    <div class="lives" id="lives"></div>
-    <div id="progress">0 placed</div>
-  </div>
-
   <div class="hand" id="hand"></div>
   <div class="toast" id="toast"></div>
   <p class="instructions">Click a gap to place the card in your hand · click a placed card to read more</p>
 
   <div class="timeline-scroll"><div class="timeline" id="timeline"></div></div>
   <div class="detail-panel" id="detail-panel" hidden></div>
-  <p class="quit-row"><button class="link" id="quit-btn">← back to menu</button></p>
-</div>
 
-<div class="overlay" id="overlay" hidden>
-  <div class="overlay-card">
-    <h2 id="overlay-title"></h2>
-    <div class="score" id="overlay-score"></div>
-    <div class="streaks" id="overlay-streaks"></div>
-    <div id="overlay-recap"></div>
-    <div class="overlay-actions">
-      <button class="primary" id="replay-btn">Play again</button>
-      <button class="ghost" id="share-btn">📸 Share my streak</button>
-      <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
-      <button class="ghost" id="overlay-menu-btn">Main menu</button>
-    </div>
+  <div class="overlay-actions" id="recap-panel" hidden>
+    <button class="primary" id="replay-btn">Play again</button>
+    <button class="ghost" id="share-btn">📸 Share my streak</button>
+    <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
+    <button class="ghost" id="overlay-menu-btn">Main menu</button>
   </div>
+
+  <p class="quit-row"><button class="link" id="quit-btn">← back to menu</button></p>
 </div>
 
 <div class="overlay" id="lb-overlay" hidden>
@@ -361,7 +339,7 @@ let playerName = '';
 let streak = 0;
 let bestStreak = 0;
 
-let deck, placed, current, lives, correct, attempts, gameOver, discarded, poolTotal;
+let deck, placed, current, correct, attempts, gameOver;
 let lastGameResult = null;
 
 function loadProfile() {
@@ -403,7 +381,7 @@ function renderSetup() {
 
 function showSetup() {
   document.getElementById('game-screen').hidden = true;
-  document.getElementById('overlay').hidden = true;
+  document.getElementById('recap-panel').hidden = true;
   document.getElementById('setup-screen').hidden = false;
   renderSetup();
 }
@@ -488,16 +466,13 @@ document.getElementById('lb-close-btn').onclick = () => { document.getElementByI
 
 function startGame() {
   const pool = shuffle(EVENTS);
-  poolTotal = pool.length;
   placed = [pool.pop()];
   deck = pool;
   current = deck.shift();
-  lives = 3;
   correct = 0;
   attempts = 0;
   gameOver = false;
-  discarded = [];
-  document.getElementById('overlay').hidden = true;
+  document.getElementById('recap-panel').hidden = true;
   document.getElementById('detail-panel').hidden = true;
   render();
 }
@@ -511,13 +486,10 @@ function attemptPlace(slotIndex) {
   if (ok) {
     placed.splice(slotIndex, 0, current);
     correct++;
-  } else {
-    lives--;
-    discarded.push(current);
   }
   toast(ok, current);
   current = null;
-  if (lives <= 0) { endGame(false); return; }
+  if (!ok) { endGame(false); return; }
   current = deck.shift() || null;
   if (!current) { endGame(true); return; }
   render();
@@ -551,17 +523,7 @@ function endGame(won) {
   saveProfile();
   lastGameResult = { won, streak, bestStreak, correct, attempts };
 
-  const missed = new Set(discarded);
-  const full = [...placed, ...discarded, ...(current ? [current] : [])].sort((a, b) => a.year - b.year);
-  document.getElementById('overlay-title').textContent = won
-    ? '🎉 You placed the whole timeline!'
-    : 'Out of lives';
-  document.getElementById('overlay-score').textContent = `${correct} of ${attempts} placements correct`;
-  document.getElementById('overlay-streaks').textContent = `Current streak: ${streak} 🔥 · Your best: ${bestStreak}`;
-  document.getElementById('overlay-recap').innerHTML = full.map(e =>
-    `<div class="recap-row"${missed.has(e) ? ' style="opacity:0.55"' : ''}><span class="y">${e.year}</span><span class="t">${missed.has(e) ? '✗ missed — ' : ''}${e.icon} ${e.title}</span></div>`
-  ).join('');
-  document.getElementById('overlay').hidden = false;
+  document.getElementById('recap-panel').hidden = false;
 }
 
 // ── Share image ──────────────────────────────────────────────────────────
@@ -655,9 +617,6 @@ function showDetail(e) {
 }
 
 function render() {
-  document.getElementById('lives').textContent = '❤️'.repeat(Math.max(lives, 0)) + '🖤'.repeat(Math.max(3 - lives, 0));
-  document.getElementById('progress').textContent = `${placed.length - 1} / ${poolTotal - 1} placed`;
-
   const hand = document.getElementById('hand');
   if (current) {
     hand.className = 'hand';
