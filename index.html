@@ -184,7 +184,7 @@
   <p class="field-label">Your name (for the leaderboard)</p>
   <input class="name-input" id="player-name" maxlength="24" placeholder="Anonymous Scientist" />
 
-  <h2>Topics <span class="muted-inline">— select none to include everything</span></h2>
+  <h2>Topics <span class="muted-inline">— tap to toggle</span></h2>
   <div class="topic-pills" id="topic-pills"></div>
   <p class="deck-count" id="deck-count"></p>
 
@@ -193,6 +193,7 @@
     <button class="ghost" id="lb-open-btn">🏆 Leaderboard</button>
   </div>
   <p class="streak-line" id="streak-line"></p>
+  <p class="sub" style="font-size:12px; margin-top:18px;">🎲 Gameplay inspired by the <strong>Timeline</strong> card game.</p>
 </div>
 
 <div class="wrap" id="game-screen" hidden>
@@ -360,7 +361,7 @@ const EVENTS = [
 
 const LB_ENDPOINT = '/api/games/microscopy-timeline/leaderboard';
 
-let selectedTopics = new Set();
+let selectedTopics = new Set(TOPICS.map(t => t.id));
 let playerName = '';
 let streak = 0;
 let bestStreak = 0;
@@ -393,7 +394,6 @@ function shuffle(arr) {
 }
 
 function poolForSelection() {
-  if (selectedTopics.size === 0) return EVENTS;
   return EVENTS.filter(e => e.topics.some(t => selectedTopics.has(t)));
 }
 
@@ -443,7 +443,7 @@ document.getElementById('start-btn').onclick = () => {
   saveProfile();
   document.getElementById('setup-screen').hidden = true;
   document.getElementById('game-screen').hidden = false;
-  const topicNames = selectedTopics.size === 0
+  const topicNames = selectedTopics.size === TOPICS.length
     ? 'all topics'
     : [...selectedTopics].map(id => TOPICS.find(t => t.id === id).label).join(', ');
   document.getElementById('game-sub').textContent = `Playing: ${topicNames}. Click a gap in the timeline to place the card in your hand.`;
@@ -572,15 +572,15 @@ function endGame(won) {
   }
   saveProfile();
 
-  const missedYears = new Set(discarded.map(e => e.year));
-  const full = [...placed, ...discarded, ...(current ? [current] : []), ...deck].sort((a, b) => a.year - b.year);
+  const missed = new Set(discarded);
+  const full = [...placed, ...discarded, ...(current ? [current] : [])].sort((a, b) => a.year - b.year);
   document.getElementById('overlay-title').textContent = won
     ? '🎉 You placed the whole timeline!'
     : 'Out of lives';
   document.getElementById('overlay-score').textContent = `${correct} of ${attempts} placements correct`;
   document.getElementById('overlay-streaks').textContent = `Current streak: ${streak} 🔥 · Your best: ${bestStreak}`;
   document.getElementById('overlay-recap').innerHTML = full.map(e =>
-    `<div class="recap-row"${missedYears.has(e.year) ? ' style="opacity:0.55"' : ''}><span class="y">${e.year}</span><span class="t">${missedYears.has(e.year) ? '✗ missed — ' : ''}${e.icon} ${e.title}</span></div>`
+    `<div class="recap-row"${missed.has(e) ? ' style="opacity:0.55"' : ''}><span class="y">${e.year}</span><span class="t">${missed.has(e) ? '✗ missed — ' : ''}${e.icon} ${e.title}</span></div>`
   ).join('');
   document.getElementById('overlay').hidden = false;
 }
