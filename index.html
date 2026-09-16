@@ -122,7 +122,7 @@
   .slot:disabled { cursor: default; opacity: 0.35; }
 
   .card-tile {
-    flex-shrink: 0; width: 108px; height: 96px;
+    flex-shrink: 0; width: 108px; height: 96px; cursor: pointer;
     background: var(--panel-2); border: 1px solid var(--rule); border-radius: 12px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 4px; padding: 8px; text-align: center;
@@ -132,6 +132,18 @@
   .card-tile .year { font-family: ui-monospace, monospace; font-weight: 700; font-size: 15px; color: var(--accent); }
   .card-tile .title { font-size: 10.5px; color: var(--muted); line-height: 1.25; }
   @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .detail-panel {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 14px;
+    padding: 16px 20px; margin-top: 4px; display: flex; gap: 14px; align-items: flex-start;
+  }
+  .detail-panel[hidden] { display: none; }
+  .detail-panel .icon { font-size: 28px; line-height: 1; }
+  .detail-panel .body { flex: 1; }
+  .detail-panel .year { font-family: ui-monospace, monospace; font-weight: 700; color: var(--accent); font-size: 12px; }
+  .detail-panel .title { font-weight: 700; font-size: 15px; margin: 4px 0 6px; }
+  .detail-panel .text { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .detail-panel a { color: var(--accent); font-weight: 600; text-decoration: underline; }
 
   .quit-row { text-align: center; margin-top: 6px; }
 
@@ -197,9 +209,10 @@
 
   <div class="hand" id="hand"></div>
   <div class="toast" id="toast"></div>
-  <p class="instructions">Click a gap below to place the card in your hand</p>
+  <p class="instructions">Click a gap to place the card in your hand · click a placed card to read more</p>
 
   <div class="timeline-scroll"><div class="timeline" id="timeline"></div></div>
+  <div class="detail-panel" id="detail-panel" hidden></div>
   <p class="quit-row"><button class="link" id="quit-btn">← back to menu</button></p>
 </div>
 
@@ -485,6 +498,7 @@ function startGame() {
   gameOver = false;
   discarded = [];
   document.getElementById('overlay').hidden = true;
+  document.getElementById('detail-panel').hidden = true;
   render();
 }
 
@@ -503,13 +517,10 @@ function attemptPlace(slotIndex) {
   }
   toast(ok, current);
   current = null;
+  if (lives <= 0) { endGame(false); return; }
+  current = deck.shift() || null;
+  if (!current) { endGame(true); return; }
   render();
-  setTimeout(() => {
-    if (lives <= 0) { endGame(false); return; }
-    current = deck.shift() || null;
-    if (!current) { endGame(true); return; }
-    render();
-  }, 2600);
 }
 
 function toast(ok, event) {
@@ -626,7 +637,21 @@ function cardTile(e) {
   const d = document.createElement('div');
   d.className = 'card-tile';
   d.innerHTML = `<div class="icon">${e.icon}</div><div class="year">${e.year}</div><div class="title">${e.title}</div>`;
+  d.onclick = () => showDetail(e);
   return d;
+}
+
+function showDetail(e) {
+  const panel = document.getElementById('detail-panel');
+  const link = e.src
+    ? ` · <a href="${e.src.url}" target="_blank" rel="noopener noreferrer">${e.src.label}</a>`
+    : '';
+  panel.innerHTML = `<div class="icon">${e.icon}</div><div class="body">
+    <div class="year">${e.year}</div>
+    <p class="title">${e.title}</p>
+    <p class="text">${e.text}${link}</p>
+  </div>`;
+  panel.hidden = false;
 }
 
 function render() {
@@ -643,7 +668,7 @@ function render() {
     </div>`;
   } else {
     hand.className = 'hand empty';
-    hand.textContent = gameOver ? 'Game over — see recap below' : 'Drawing next card…';
+    hand.textContent = 'Game over — see recap below';
   }
 
   const timeline = document.getElementById('timeline');
