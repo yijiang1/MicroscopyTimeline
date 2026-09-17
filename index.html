@@ -197,6 +197,7 @@
   <div class="detail-panel" id="detail-panel" hidden></div>
 
   <div class="overlay-actions" id="recap-panel" hidden>
+    <p class="streak-line" id="recap-score-line"></p>
     <button class="primary" id="replay-btn">Play again</button>
     <button class="ghost" id="share-btn">📸 Share my timeline</button>
     <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
@@ -208,7 +209,7 @@
 
 <div class="overlay" id="lb-overlay" hidden>
   <div class="overlay-card">
-    <h2>🏆 Longest Winning Streaks</h2>
+    <h2>🏆 Best Scores</h2>
     <div id="lb-list">Loading…</div>
     <div class="overlay-actions">
       <button class="primary" id="lb-close-btn">Close</button>
@@ -355,8 +356,7 @@ const EVENTS = [
 const LB_ENDPOINT = '/api/games/microscopy-timeline/leaderboard';
 
 let playerName = '';
-let streak = 0;
-let bestStreak = 0;
+let bestScore = 0;
 
 let deck, placed, current, correct, attempts, gameOver;
 let lastGameResult = null;
@@ -364,16 +364,14 @@ let lastGameResult = null;
 function loadProfile() {
   try {
     playerName = localStorage.getItem('mt_name') || '';
-    streak = parseInt(localStorage.getItem('mt_streak') || '0', 10) || 0;
-    bestStreak = parseInt(localStorage.getItem('mt_best') || '0', 10) || 0;
+    bestScore = parseInt(localStorage.getItem('mt_best_score') || '0', 10) || 0;
   } catch (e) { /* localStorage unavailable — play without persistence */ }
 }
 
 function saveProfile() {
   try {
     localStorage.setItem('mt_name', playerName);
-    localStorage.setItem('mt_streak', String(streak));
-    localStorage.setItem('mt_best', String(bestStreak));
+    localStorage.setItem('mt_best_score', String(bestScore));
   } catch (e) { /* ignore */ }
 }
 
@@ -393,8 +391,8 @@ function renderSetup() {
   document.getElementById('deck-count').textContent = `${EVENTS.length} events, shuffled fresh each game`;
 
   const streakLine = document.getElementById('streak-line');
-  streakLine.textContent = (streak > 0 || bestStreak > 0)
-    ? `Current streak: ${streak} 🔥 · Your best: ${bestStreak}`
+  streakLine.textContent = bestScore > 0
+    ? `Your best: ${bestScore} placed correctly 🏆`
     : '';
 }
 
@@ -422,7 +420,7 @@ document.getElementById('overlay-menu-btn').onclick = showSetup;
 
 // ── Leaderboard ──────────────────────────────────────────────────────────
 
-function lbRow(rank, name, streakVal, highlight) {
+function lbRow(rank, name, scoreVal, highlight) {
   const div = document.createElement('div');
   div.className = 'lb-row' + (highlight ? ' you' : '');
   const rankEl = document.createElement('span');
@@ -431,10 +429,10 @@ function lbRow(rank, name, streakVal, highlight) {
   const nameEl = document.createElement('span');
   nameEl.className = 'lb-name';
   nameEl.textContent = name;
-  const streakEl = document.createElement('span');
-  streakEl.className = 'lb-streak';
-  streakEl.textContent = `🔥 ${streakVal}`;
-  div.append(rankEl, nameEl, streakEl);
+  const scoreEl = document.createElement('span');
+  scoreEl.className = 'lb-streak';
+  scoreEl.textContent = String(scoreVal);
+  div.append(rankEl, nameEl, scoreEl);
   return div;
 }
 
@@ -447,7 +445,7 @@ async function loadLeaderboard() {
     const data = await res.json();
     const top = Array.isArray(data) ? data : (data.top || []);
     if (top.length === 0) {
-      el.textContent = 'No streaks yet — be the first!';
+      el.textContent = 'No scores yet — be the first!';
       return;
     }
     el.innerHTML = '';
@@ -463,12 +461,13 @@ async function loadLeaderboard() {
   }
 }
 
-async function submitScore(name, streakVal) {
+async function submitScore(name, scoreVal) {
   try {
     await fetch(LB_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, streak: streakVal }),
+      // wire field stays "streak" — the ptychohub leaderboard API/schema is unchanged, just repurposed to store a score
+      body: JSON.stringify({ name, streak: scoreVal }),
     });
   } catch (e) { /* best effort — a failed submission shouldn't break the game */ }
 }
@@ -529,18 +528,16 @@ function endGame(won) {
   gameOver = true;
   render();
 
-  if (won) {
-    streak++;
-    if (streak > bestStreak) {
-      bestStreak = streak;
-      submitScore(playerName, bestStreak);
-    }
-  } else {
-    streak = 0;
+  const isNewBest = correct > bestScore;
+  if (isNewBest) {
+    bestScore = correct;
+    submitScore(playerName, bestScore);
   }
   saveProfile();
-  lastGameResult = { won, streak, bestStreak, correct, attempts, placed };
+  lastGameResult = { won, correct, attempts, placed };
 
+  document.getElementById('recap-score-line').textContent =
+    `${correct} placed correctly${isNewBest ? ' — new best! 🎉' : ''}`;
   document.getElementById('recap-panel').hidden = false;
 }
 
@@ -572,8 +569,7 @@ function buildShareCanvas(result) {
   const rows = Math.ceil(result.placed.length / cols);
 
   const showCompleted = result.won;
-  const showStreak = result.streak > 1;
-  const gridTop = 130 + (showCompleted ? 30 : 0) + (showStreak ? 30 : 0);
+  const gridTop = 130 + (showCompleted ? 30 : 0);
   const gridH = rows * cardH + (rows - 1) * gap;
   const height = gridTop + gridH + 70;
 
@@ -595,19 +591,13 @@ function buildShareCanvas(result) {
   const name = playerName || 'Anonymous Scientist';
   ctx.fillStyle = '#221d13';
   ctx.font = '600 22px -apple-system, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(`${name}'s timeline · ${result.correct}/${result.attempts} placed correctly`, cx, 98);
+  ctx.fillText(`${name}'s timeline`, cx, 98);
 
   let y = 130;
   if (showCompleted) {
     ctx.fillStyle = '#1f9e6e';
     ctx.font = '700 24px -apple-system, "Segoe UI", Roboto, sans-serif';
     ctx.fillText('🏆 COMPLETED THE FULL TIMELINE', cx, y);
-    y += 30;
-  }
-  if (showStreak) {
-    ctx.fillStyle = '#a3722c';
-    ctx.font = '600 20px -apple-system, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`🔥 Win streak: ${result.streak}`, cx, y);
     y += 30;
   }
 
