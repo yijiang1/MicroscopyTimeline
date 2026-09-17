@@ -19,45 +19,63 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0;
-    background: var(--bg);
+    background: linear-gradient(180deg, #fffdf8 0%, var(--bg) 260px);
     color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     min-height: 100vh;
   }
   button { touch-action: manipulation; }
   .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
-  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.3px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.3px; }
   h2 { font-size: 15px; margin: 26px 0 4px; }
-  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
   .muted-inline { color: var(--muted); font-weight: 400; font-size: 12px; }
 
   /* ── Setup screen ─────────────────────────────────────────────────── */
+  #setup-screen.wrap { max-width: 460px; padding-top: 40px; }
+  #setup-screen h1 { text-align: center; }
+  #setup-screen .sub { text-align: center; }
+  .setup-card {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 18px;
+    padding: 26px 24px; margin-top: 22px;
+    box-shadow: 0 1px 2px rgba(34,29,19,0.03), 0 12px 28px rgba(34,29,19,0.06);
+  }
   .field-label { font-size: 13px; font-weight: 700; margin: 0 0 8px; }
   .name-input {
-    width: 100%; max-width: 280px; padding: 10px 12px; border-radius: 10px;
+    width: 100%; padding: 12px 14px; border-radius: 10px;
     border: 1px solid var(--rule); font-size: 16px; background: #fff; color: var(--ink);
-    font-family: inherit;
+    font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .deck-count { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
+  .name-input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(163,114,44,0.15);
+  }
   .setup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; align-items: center; }
-  .streak-line { color: var(--muted); font-size: 13px; margin-top: 14px; }
+  .streak-line { color: var(--muted); font-size: 13px; margin-top: 16px; text-align: center; }
+  .credit-line { color: var(--muted); font-size: 12.5px; text-align: center; margin: 22px 0 0; }
+  .credit-line a { color: var(--accent); font-weight: 600; text-decoration: underline; }
 
   button.primary {
     background: var(--accent); color: #fff; border: none;
-    padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 14.5px; cursor: pointer;
-    transition: filter 0.15s;
+    padding: 13px 22px; border-radius: 10px; font-weight: 700; font-size: 14.5px; cursor: pointer;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.08), 0 6px 16px rgba(163,114,44,0.25);
+    transition: filter 0.15s, transform 0.1s;
   }
-  button.primary:hover { filter: brightness(1.1); }
-  button.primary:disabled { opacity: 0.4; cursor: default; filter: none; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:active { transform: translateY(1px) scale(0.99); }
+  button.primary:disabled { opacity: 0.4; cursor: default; filter: none; box-shadow: none; }
   button.ghost {
-    background: none; color: var(--ink); border: 1px solid var(--rule);
-    padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    background: #fff; color: var(--ink); border: 1px solid var(--rule);
+    padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
   }
   button.ghost:hover { border-color: var(--accent); }
+  button.ghost:active { transform: translateY(1px) scale(0.99); }
   button.link {
     background: none; border: none; color: var(--accent); font-size: 12.5px; font-weight: 600;
     cursor: pointer; padding: 0; text-decoration: underline;
   }
+  #setup-screen .setup-actions { justify-content: center; }
 
   /* ── Game screen ──────────────────────────────────────────────────── */
   .hand {
@@ -67,6 +85,7 @@
     padding: 18px 20px;
     display: flex; gap: 14px; align-items: flex-start;
     min-height: 78px;
+    box-shadow: 0 1px 2px rgba(34,29,19,0.03), 0 8px 20px rgba(34,29,19,0.05);
   }
   .hand .icon { font-size: 34px; line-height: 1; }
   .hand .body { flex: 1; }
@@ -118,6 +137,12 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 4px; padding: 8px; text-align: center;
     animation: pop 0.25s ease;
+    box-shadow: 0 1px 2px rgba(34,29,19,0.04), 0 4px 10px rgba(34,29,19,0.05);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .card-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(34,29,19,0.05), 0 8px 18px rgba(34,29,19,0.08);
   }
   .card-tile .icon { font-size: 22px; }
   .card-tile .year { font-family: ui-monospace, monospace; font-weight: 700; font-size: 15px; color: var(--accent); }
@@ -127,6 +152,7 @@
   .detail-panel {
     background: var(--panel); border: 1px solid var(--rule); border-radius: 14px;
     padding: 16px 20px; margin-top: 4px; display: flex; gap: 14px; align-items: flex-start;
+    box-shadow: 0 1px 2px rgba(34,29,19,0.03), 0 8px 20px rgba(34,29,19,0.05);
   }
   .detail-panel[hidden] { display: none; }
   .detail-panel .icon { font-size: 28px; line-height: 1; }
@@ -147,6 +173,7 @@
   .overlay-card {
     background: var(--panel); border: 1px solid var(--rule); border-radius: 16px;
     padding: 28px; max-width: 480px; width: 100%; max-height: 82vh; overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(11,18,32,0.25);
   }
   @media (max-width: 420px) {
     .overlay-card { padding: 20px; }
@@ -164,6 +191,20 @@
   .lb-streak { font-weight: 700; color: var(--accent); }
   .lb-row.you { background: rgba(163,114,44,0.08); border-radius: 8px; padding: 8px 6px; margin: 4px 0; border-bottom: none; }
   .lb-sep { text-align: center; color: var(--muted); font-size: 12px; padding: 4px 0; }
+
+  /* ── Mobile ───────────────────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .wrap { padding: 18px 14px 40px; }
+    #setup-screen.wrap { padding-top: 28px; }
+    h1 { font-size: 22px; }
+    .setup-card { padding: 20px 16px; }
+    .setup-actions { flex-direction: column; align-items: stretch; }
+    .setup-actions button { width: 100%; text-align: center; }
+    .hand { padding: 14px 16px; }
+    .card-tile { width: 92px; height: 118px; }
+    .card-tile .title { font-size: 10px; }
+    .slot { width: 30px; }
+  }
 </style>
 </head>
 <body>
@@ -172,17 +213,18 @@
   <h1>🔬 Microscopy Through Time</h1>
   <p class="sub">A timeline card game spanning optical, electron, X-ray, and scanning-probe microscopy, and ptychography. Place each discovery in the right chronological order.</p>
 
-  <p class="field-label">Your name (for the leaderboard)</p>
-  <input class="name-input" id="player-name" maxlength="24" placeholder="Anonymous Scientist" />
+  <div class="setup-card">
+    <p class="field-label">Your name (for the leaderboard)</p>
+    <input class="name-input" id="player-name" maxlength="24" placeholder="Anonymous Scientist" />
 
-  <p class="deck-count" id="deck-count"></p>
-
-  <div class="setup-actions">
-    <button class="primary" id="start-btn">Start Game</button>
-    <button class="ghost" id="lb-open-btn">🏆 Leaderboard</button>
+    <div class="setup-actions">
+      <button class="primary" id="start-btn">Start Game</button>
+      <button class="ghost" id="lb-open-btn">🏆 Leaderboard</button>
+    </div>
+    <p class="streak-line" id="streak-line"></p>
   </div>
-  <p class="streak-line" id="streak-line"></p>
-  <p class="sub" style="font-size:12px; margin-top:18px;">🎲 Gameplay inspired by the <strong>Timeline</strong> card game.</p>
+
+  <p class="credit-line">🎲 Gameplay inspired by the <a href="https://boardgamegeek.com/boardgame/128664/timeline" target="_blank" rel="noopener noreferrer">Timeline</a> card game.</p>
 </div>
 
 <div class="wrap" id="game-screen" hidden>
@@ -388,7 +430,6 @@ function shuffle(arr) {
 
 function renderSetup() {
   document.getElementById('player-name').value = playerName;
-  document.getElementById('deck-count').textContent = `${EVENTS.length} events, shuffled fresh each game`;
 
   const streakLine = document.getElementById('streak-line');
   streakLine.textContent = bestScore > 0
