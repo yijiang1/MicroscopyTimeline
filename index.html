@@ -239,7 +239,6 @@
   <div class="detail-panel" id="detail-panel" hidden></div>
 
   <div class="overlay-actions" id="recap-panel" hidden>
-    <p class="streak-line" id="recap-score-line"></p>
     <button class="primary" id="replay-btn">Play again</button>
     <button class="ghost" id="share-btn">📸 Share my timeline</button>
     <button class="ghost" id="overlay-lb-btn">🏆 Leaderboard</button>
@@ -402,6 +401,7 @@ let bestScore = 0;
 
 let deck, placed, current, correct, attempts, gameOver;
 let lastGameResult = null;
+let recapMessage = '';
 
 function loadProfile() {
   try {
@@ -568,7 +568,6 @@ function toast(ok, event) {
 
 function endGame(won) {
   gameOver = true;
-  render();
 
   const isNewBest = correct > bestScore;
   if (isNewBest) {
@@ -578,8 +577,9 @@ function endGame(won) {
   saveProfile();
   lastGameResult = { won, correct, attempts, placed };
 
-  document.getElementById('recap-score-line').textContent =
-    `${correct} placed correctly${isNewBest ? ' — new best! 🎉' : ''}`;
+  recapMessage = `Game over — ${correct} placed correctly${isNewBest ? ' — new best! 🎉' : ''}`;
+  render();
+
   document.getElementById('recap-panel').hidden = false;
   document.getElementById('quit-row').hidden = true;
 }
@@ -742,7 +742,7 @@ function render() {
     </div>`;
   } else {
     hand.className = 'hand empty';
-    hand.textContent = 'Game over — see recap below';
+    hand.textContent = recapMessage;
   }
 
   const timeline = document.getElementById('timeline');
