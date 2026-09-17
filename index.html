@@ -246,7 +246,7 @@
     <button class="ghost" id="overlay-menu-btn">Main menu</button>
   </div>
 
-  <p class="quit-row"><button class="link" id="quit-btn">← back to menu</button></p>
+  <p class="quit-row" id="quit-row"><button class="link" id="quit-btn">← back to menu</button></p>
 </div>
 
 <div class="overlay" id="lb-overlay" hidden>
@@ -534,6 +534,7 @@ function startGame() {
   document.getElementById('recap-panel').hidden = true;
   document.getElementById('detail-panel').hidden = true;
   document.getElementById('toast').className = 'toast';
+  document.getElementById('quit-row').hidden = false;
   render();
 }
 
@@ -580,6 +581,7 @@ function endGame(won) {
   document.getElementById('recap-score-line').textContent =
     `${correct} placed correctly${isNewBest ? ' — new best! 🎉' : ''}`;
   document.getElementById('recap-panel').hidden = false;
+  document.getElementById('quit-row').hidden = true;
 }
 
 // ── Share image ──────────────────────────────────────────────────────────
